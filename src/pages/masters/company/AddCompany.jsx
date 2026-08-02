@@ -48,7 +48,6 @@ const AddCompany = () => {
             <Input label="Company Name *" />
             <Input label="GST No" />
             <Input label="PAN No" />
-            <Input label="Financial Year" />
           </div>
         </div>
 

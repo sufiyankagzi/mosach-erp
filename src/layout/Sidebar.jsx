@@ -24,7 +24,7 @@ function Sidebar({ isOpen, setIsOpen }) {
       <aside
         className={`
           fixed top-0 left-0 z-50
-          w-64 h-screen overflow-y-auto
+          w-72 lg:w-64 h-screen overflow-y-auto
           bg-[#0A4B57] text-white
           transform transition-transform duration-300
           ${isOpen ? "translate-x-0" : "-translate-x-full"}

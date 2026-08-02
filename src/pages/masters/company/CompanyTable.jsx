@@ -1,36 +1,21 @@
 import { FaEdit, FaTrash } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 
-const companyData = [
-  {
-    id: 1,
-    companyName: "MOSACH INTERNATIONAL PVT. LTD.",
-    gst: "24ABCDE1234A1Z5",
-    mobile: "9879361093",
-    city: "Bahadurgarh, Haryana.",
-    status: "Active",
-  },
-  {
-    id: 2,
-    companyName: "MOSACH FOOTWEAR",
-    gst: "24ABCDE1234A1Z5",
-    mobile: "9106405440",
-    city: "Bahadurgarh, Haryana.",
-    status: "Active",
-  },
-];
+const CompanyTable = ({ companies, search, onDelete }) => {
 
-const CompanyTable = ({ search }) => {
   const navigate = useNavigate();
 
-  const filtered = companyData.filter((item) =>
-    item.companyName.toLowerCase().includes(search.toLowerCase())
+
+  const filtered = companies.filter((item) =>
+    item.companyname
+      ?.toLowerCase()
+      .includes(search.toLowerCase())
   );
+
 
   return (
     <div className="bg-white rounded-xl shadow overflow-hidden">
 
-      {/* Mobile Scroll */}
       <div className="overflow-x-auto">
 
         <table className="min-w-[900px] w-full">
@@ -49,73 +34,112 @@ const CompanyTable = ({ search }) => {
 
           </thead>
 
+
           <tbody>
 
-            {filtered.length === 0 ? (
+          {
+            filtered.length === 0 ?
+
+            (
               <tr>
                 <td
-                  colSpan={7}
-                  className="text-center py-10 text-gray-500"
+                colSpan={7}
+                className="text-center py-10 text-gray-500"
                 >
                   No Company Found
                 </td>
               </tr>
-            ) : (
-              filtered.map((item, index) => (
-                <tr
-                  key={item.id}
-                  className="border-b hover:bg-slate-50 transition"
-                >
-                  <td className="p-3 text-center">
-                    {index + 1}
-                  </td>
+            )
 
-                  <td className="p-3 font-medium whitespace-nowrap">
-                    {item.companyName}
-                  </td>
+            :
 
-                  <td className="p-3 whitespace-nowrap">
-                    {item.gst}
-                  </td>
+            filtered.map((item,index)=>(
 
-                  <td className="p-3 whitespace-nowrap">
-                    {item.mobile}
-                  </td>
+              <tr
+              key={item.companyid}
+              className="border-b hover:bg-slate-50 transition"
+              >
 
-                  <td className="p-3 whitespace-nowrap">
-                    {item.city}
-                  </td>
+                <td className="p-3 text-center">
+                  {index+1}
+                </td>
 
-                  <td className="p-3 text-center">
+
+                <td className="p-3 font-medium whitespace-nowrap">
+                  {item.companyname}
+                </td>
+
+
+                <td className="p-3">
+                  {item.gstno}
+                </td>
+
+
+                <td className="p-3">
+                  {item.mobileno}
+                </td>
+
+
+                <td className="p-3">
+                  {item.city}, {item.state}
+                </td>
+
+
+                <td className="p-3 text-center">
+
+                  {
+                    item.isactive === 1 ?
+
                     <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-medium">
-                      {item.status}
+                      Active
                     </span>
-                  </td>
 
-                  <td className="p-3">
-                    <div className="flex justify-center gap-2">
+                    :
 
-                      <button
-                        onClick={() =>
-                          navigate(`/masters/company/edit/${item.id}`)
-                        }
-                        className="w-9 h-9 bg-blue-500 hover:bg-blue-600 text-white rounded-lg flex items-center justify-center transition"
-                      >
-                        <FaEdit />
-                      </button>
+                    <span className="bg-red-100 text-red-700 px-3 py-1 rounded-full text-xs font-medium">
+                      Inactive
+                    </span>
+                  }
 
-                      <button
-                        className="w-9 h-9 bg-red-500 hover:bg-red-600 text-white rounded-lg flex items-center justify-center transition"
-                      >
-                        <FaTrash />
-                      </button>
+                </td>
 
-                    </div>
-                  </td>
 
-                </tr>
-              ))
-            )}
+
+                <td className="p-3">
+
+                  <div className="flex justify-center gap-2">
+
+
+                    <button
+                    onClick={()=>
+                      navigate(`/masters/company/edit/${item.companyid}`)
+                    }
+                    className="w-9 h-9 bg-blue-500 hover:bg-blue-600 text-white rounded-lg flex items-center justify-center"
+                    >
+                      <FaEdit/>
+                    </button>
+
+
+
+                    <button
+                    onClick={()=>onDelete(item.companyid)}
+                    className="w-9 h-9 bg-red-500 hover:bg-red-600 text-white rounded-lg flex items-center justify-center"
+                    >
+                      <FaTrash/>
+                    </button>
+
+
+                  </div>
+
+                </td>
+
+
+              </tr>
+
+            ))
+
+          }
+
 
           </tbody>
 
@@ -126,5 +150,6 @@ const CompanyTable = ({ search }) => {
     </div>
   );
 };
+
 
 export default CompanyTable;
