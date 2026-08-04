@@ -35,7 +35,7 @@ const menuData = [
       {
         name: "Company",
         icon: FaBuilding,
-        path: "/masters/company/company",
+        path: "/masters/company",
       },
       {
         name: "Branch",

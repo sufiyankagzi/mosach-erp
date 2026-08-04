@@ -1,8 +1,10 @@
 import { FaEdit, FaTrash } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
+import Swal from "sweetalert2";
+// import api from "../../api"; // apna api path
 
 const CompanyTable = ({ companies, search, onDelete }) => {
-
+console.log("CompanyTable Loaded");
   const navigate = useNavigate();
 
 
@@ -12,7 +14,7 @@ const CompanyTable = ({ companies, search, onDelete }) => {
       .includes(search.toLowerCase())
   );
 
-
+console.log("onDelete prop =", onDelete);
   return (
     <div className="bg-white rounded-xl shadow overflow-hidden">
 
@@ -122,11 +124,15 @@ const CompanyTable = ({ companies, search, onDelete }) => {
 
 
                     <button
-                    onClick={()=>onDelete(item.companyid)}
-                    className="w-9 h-9 bg-red-500 hover:bg-red-600 text-white rounded-lg flex items-center justify-center"
-                    >
-                      <FaTrash/>
-                    </button>
+  type="button"
+  onClick={() => {
+    console.log("Button Clicked");
+    onDelete(item.companyid);
+  }}
+  className="w-9 h-9 bg-red-500 hover:bg-red-600 text-white rounded-lg flex items-center justify-center"
+>
+  <FaTrash />
+</button>
 
 
                   </div>

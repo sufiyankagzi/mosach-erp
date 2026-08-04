@@ -3,12 +3,61 @@ import api from "../../../api/axios";
 import CompanyTable from "./CompanyTable";
 import Button from "../../../components/Button";
 import {  useNavigate } from "react-router-dom";
+import Swal from "sweetalert2";
+
 const Company = () => {
+  console.log("Company Component Render");
+  console.log("API BASE =", api.defaults.baseURL);
+
+
   const navigate = useNavigate();
   const [companies, setCompanies] = useState([]);
   const [search, setSearch] = useState("");
-  const getCompanies = async () => {
+const handleDelete = async (id) => {
+  console.log("Delete Clicked", id);
 
+  const result = await Swal.fire({
+    title: "Delete Company?",
+    text: "This action cannot be undone!",
+    icon: "warning",
+    showCancelButton: true,
+    confirmButtonText: "Yes, Delete",
+    cancelButtonText: "Cancel",
+  });
+
+  // Pehle check karo user ne confirm kiya ya nahi
+  if (!result.isConfirmed) return;
+
+  try {
+    console.log("Deleting ID:", id);
+
+    const res = await api.delete(`/company/${id}`);
+
+    console.log("API Response:", res.data);
+
+    getCompanies();
+
+    Swal.fire({
+      icon: "success",
+      title: "Deleted!",
+      text: "Company deleted successfully.",
+      timer: 1500,
+      showConfirmButton: false,
+    });
+
+  } catch (err) {
+    console.log("Delete Error:", err);
+
+    Swal.fire({
+      icon: "error",
+      title: "Delete Failed",
+      text: err.response?.data?.message || err.message,
+    });
+  }
+};
+
+  const getCompanies = async () => {
+const res = await api.get("/company");
     try {
 
       const res = await api.get("/company");
@@ -32,23 +81,9 @@ const Company = () => {
 
 
 
-  const deleteCompany = async (id) => {
-
-    try {
-
-      await api.delete(`/company/${id}`);
-
-      getCompanies();
-
-    } catch (error) {
-
-      console.log(error);
-
-    }
-
-  };
 
 
+console.log("handleDelete =", handleDelete);
 
 return (
   <>
@@ -111,7 +146,7 @@ return (
     <CompanyTable
       companies={companies}
       search={search}
-      onDelete={deleteCompany}
+      onDelete={handleDelete}
     />
 
 
