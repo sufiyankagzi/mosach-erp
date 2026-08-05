@@ -93,7 +93,7 @@ const removeLogo = () => {
   };
 
   const handleSubmit = async () => {
-    console.log("Save Clicked");
+    
     if (!validate()) return;
     try {
       setLoading(true);
