@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Swal from "sweetalert2";
+const API_URL = import.meta.env.VITE_API_URL;
 import {
     FaUser,
     FaLock,
@@ -70,22 +71,34 @@ const Login = () => {
 
             setLoading(true);
 
-
             const response = await fetch(
-                "http://localhost:5000/api/auth/login",
-                {
-                    method: "POST",
+    `${API_URL}/auth/login`,
+    {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            username: formData.username.trim(),
+            password: formData.password
+        })
+    }
+);
+            // const response = await fetch(
+            //     "http://localhost:5000/api/auth/login",
+            //     {
+            //         method: "POST",
 
-                    headers: {
-                        "Content-Type": "application/json"
-                    },
+            //         headers: {
+            //             "Content-Type": "application/json"
+            //         },
 
-                    body: JSON.stringify({
-                        username: formData.username.trim(),
-                        password: formData.password
-                    })
-                }
-            );
+            //         body: JSON.stringify({
+            //             username: formData.username.trim(),
+            //             password: formData.password
+            //         })
+            //     }
+            // );
 
 
             const data = await response.json();
@@ -109,10 +122,11 @@ const Login = () => {
 
 
             // TOKEN SAVE
-            localStorage.setItem(
-                "token",
-                data.token
-            );
+            localStorage.setItem("token", data.token);
+
+console.log("LOGIN RESPONSE:", data);
+console.log("JWT TOKEN:", data.token);
+console.log("SAVED TOKEN:", localStorage.getItem("token"));
 
 
             // USER SAVE
