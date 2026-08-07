@@ -4,6 +4,8 @@ import CompanyTable from "./CompanyTable";
 import Button from "../../../components/Button";
 import {  useNavigate } from "react-router-dom";
 import Swal from "sweetalert2";
+import { FaSearch } from "react-icons/fa";
+import { FiSearch } from "react-icons/fi";
 
 const Company = () => {
   
@@ -127,28 +129,17 @@ return (
 
 
     {/* Search */}
-    <div className="mb-6">
+ <div className="flex w-full sm:w-96 pb-3">
+  <input
+    type="text"
+    placeholder="Search Company / GSTIN / Mobile No...."
+    className="flex-1 border rounded-l-lg px-3 py-2 focus:outline-none"
+  />
 
-      <input
-        type="text"
-        placeholder="Search by Company Name / Mobile / GSTIN"
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        className="
-          border
-          p-2
-          rounded-lg
-          w-full
-          sm:w-96
-          text-left
-          focus:outline-none
-          focus:ring-2
-          focus:ring-[#0A4B57]
-        "
-      />
-
-    </div>
-
+  <button className="bg-[#0A4B57] text-white px-4 rounded-r-lg hover:bg-[#083842]">
+    <FaSearch />
+  </button>
+</div>
 
 
     <CompanyTable
