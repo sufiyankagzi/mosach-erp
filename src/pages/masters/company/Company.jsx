@@ -6,9 +6,7 @@ import {  useNavigate } from "react-router-dom";
 import Swal from "sweetalert2";
 
 const Company = () => {
-  console.log("Company Component Render");
-  console.log("API BASE =", api.defaults.baseURL);
-
+  
 
   const navigate = useNavigate();
   const [companies, setCompanies] = useState([]);
@@ -56,12 +54,22 @@ const handleDelete = async (id) => {
   }
 };
 
+const filteredCompanies = companies.filter((company) => {
+  const keyword = search.trim().toLowerCase();
+
+  return (
+    company.companyname?.toLowerCase().includes(keyword) ||
+    company.gstno?.toLowerCase().includes(keyword) ||
+    company.mobileno?.includes(search.trim())
+  );
+});
+
   const getCompanies = async () => {
 const res = await api.get("/company");
     try {
 
       const res = await api.get("/company");
-
+console.log(res.data);
       setCompanies(res.data);
 
     } catch (error) {
@@ -123,7 +131,7 @@ return (
 
       <input
         type="text"
-        placeholder="Search Company..."
+        placeholder="Search by Company Name / Mobile / GSTIN"
         value={search}
         onChange={(e) => setSearch(e.target.value)}
         className="
@@ -144,7 +152,7 @@ return (
 
 
     <CompanyTable
-      companies={companies}
+      companies={filteredCompanies}
       search={search}
       onDelete={handleDelete}
     />

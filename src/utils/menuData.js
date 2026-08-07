@@ -37,21 +37,23 @@ const menuData = [
         icon: FaBuilding,
         path: "/masters/company",
       },
-      {
-        name: "Branch",
-        icon: FaCodeBranch,
-        path: "/masters/branch",
-      },
-      {
+       {
         name: "Users",
         icon: FaUserTie,
         path: "/masters/users",
       },
       {
+        name: "Branch",
+        icon: FaCodeBranch,
+        path: "/masters/branch",
+      },
+      
+      {
         name: "Supplier",
         icon: FaUsers,
         path: "/masters/supplier",
       },
+     
       {
         name: "Customer",
         icon: FaUsers,

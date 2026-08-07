@@ -3,18 +3,13 @@ import { useNavigate } from "react-router-dom";
 import Swal from "sweetalert2";
 // import api from "../../api"; // apna api path
 
-const CompanyTable = ({ companies, search, onDelete }) => {
+const CompanyTable = ({ companies,  onDelete }) => {
 console.log("CompanyTable Loaded");
   const navigate = useNavigate();
 
 
-  const filtered = companies.filter((item) =>
-    item.companyname
-      ?.toLowerCase()
-      .includes(search.toLowerCase())
-  );
 
-console.log("onDelete prop =", onDelete);
+// console.log("onDelete prop =", onDelete);
   return (
     <div className="bg-white rounded-xl shadow overflow-hidden">
 
@@ -40,7 +35,7 @@ console.log("onDelete prop =", onDelete);
           <tbody>
 
           {
-            filtered.length === 0 ?
+            companies.length === 0 ?
 
             (
               <tr>
@@ -55,7 +50,7 @@ console.log("onDelete prop =", onDelete);
 
             :
 
-            filtered.map((item,index)=>(
+            companies.map((item,index)=>(
 
               <tr
               key={item.companyid}
