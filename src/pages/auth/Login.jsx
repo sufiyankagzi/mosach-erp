@@ -1,66 +1,120 @@
+
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Swal from "sweetalert2";
-const API_URL = import.meta.env.VITE_API_URL;
+
 import {
     FaUser,
     FaLock,
     FaEye,
     FaEyeSlash,
     FaArrowRight,
-    FaShieldAlt
+    FaShieldAlt,
+    FaChartLine,
+    FaBoxes,
+    FaClipboardList,
+    FaCheckCircle,
+    FaIndustry,
+    FaUsers,
 } from "react-icons/fa";
 
-const Login = () => {
+const API_URL = import.meta.env.VITE_API_URL;
+
+function Login() {
 
     const navigate = useNavigate();
 
-    const [formData, setFormData] = useState({
-        username: "",
-        password: ""
-    });
+    const [username, setUsername] = useState("");
+    const [password, setPassword] = useState("");
 
     const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
 
 
-    // INPUT CHANGE
-    const handleChange = (e) => {
-
-        const { name, value } = e.target;
-
-        setFormData((prev) => ({
-            ...prev,
-            [name]: value
-        }));
-    };
-
-
+    // =====================================================
     // LOGIN
-    const handleSubmit = async (e) => {
+    // =====================================================
+
+    const handleLogin = async (e) => {
 
         e.preventDefault();
 
-        if (!formData.username.trim()) {
+        if (!username.trim()) {
 
             Swal.fire({
-                icon: "warning",
-                title: "Username Required",
-                text: "Please enter your username.",
-                confirmButtonColor: "#EF8535"
+                html: `
+                <div style="display: flex; flex-direction: column; align-items: center; text-align: center;">
+                    <div style="display: flex; align-items: center; gap: 12px;margin-bottom: 22px;">
+                        <div style="width: 48px; height: 48px; border-radius: 16px; background: #EF8535; display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 20px rgba(239,133,53,0.25);">
+                            <span style="color: white; font-size: 22px; font-weight: 900;">M</span>
+                        </div>
+                        <div style="text-align: left;">
+                            <div style="font-size: 18px;font-weight: 700;color: #0A4B57;line-height: 1.2;">
+                                MOSACH<span style="color: #EF8535;">ERP</span>
+                            </div>
+                            <div style="margin-top: 4px;font-size: 8px;color: #9CA3AF;text-transform: uppercase;letter-spacing: 2px;">
+                                Enterprise Management
+                            </div>
+                        </div>
+                    </div>
+                    <!-- SUCCESS ICON -->
+                    <div style="width: 58px;height: 58px;border-radius: 50%;background: rgba(239,133,53,0.10);color: #EF8535;display: flex;align-items: center;justify-content: center;font-size: 30px;font-weight: 700;margin-bottom: 14px;">
+                        !
+                    </div>
+                    <div style="font-size: 22px;font-weight: 700;color: #0A4B57;">
+                        Username Required
+                    </div>
+                    <div style="margin-top: 7px;font-size: 13px;color: #9CA3AF;">
+                        Please enter your username.
+                    </div>
+                </div>
+                `,
+                // icon: "warning",
+                // title: "Username Required",
+                // text: "Please enter your username.",
+                confirmButtonColor: "#EF8535",
             });
 
             return;
         }
 
 
-        if (!formData.password) {
+        if (!password) {
 
             Swal.fire({
-                icon: "warning",
-                title: "Password Required",
-                text: "Please enter your password.",
-                confirmButtonColor: "#EF8535"
+                html: `
+                <div style="display: flex; flex-direction: column; align-items: center; text-align: center;">
+                    <div style="display: flex; align-items: center; gap: 12px;margin-bottom: 22px;">
+                        <div style="width: 48px; height: 48px; border-radius: 16px; background: #EF8535; display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 20px rgba(239,133,53,0.25);">
+                            <span style="color: white; font-size: 22px; font-weight: 900;">M</span>
+                        </div>
+                        <div style="text-align: left;">
+                            <div style="font-size: 18px;font-weight: 700;color: #0A4B57;line-height: 1.2;">
+                                MOSACH<span style="color: #EF8535;">ERP</span>
+                            </div>
+                            <div style="margin-top: 4px;font-size: 8px;color: #9CA3AF;text-transform: uppercase;letter-spacing: 2px;">
+                                Enterprise Management
+                            </div>
+                        </div>
+                    </div>
+                    <!-- SUCCESS ICON -->
+                    <div style="width: 58px;height: 58px;border-radius: 50%;background: rgba(239,133,53,0.10);color: #EF8535;display: flex;align-items: center;justify-content: center;font-size: 30px;font-weight: 700;margin-bottom: 14px;">
+                        !
+                    </div>
+                    <div style="font-size: 22px;font-weight: 700;color: #0A4B57;">
+                        Password Required
+                    </div>
+                    <div style="margin-top: 7px;font-size: 13px;color: #9CA3AF;">
+                        Please enter your password.
+                    </div>
+                </div>
+                `,
+                // icon: "warning",
+                // title: "Password Required",
+                // text: "Please enter your password.",
+                confirmButtonColor: "#EF8535",
+
+
             });
 
             return;
@@ -71,65 +125,79 @@ const Login = () => {
 
             setLoading(true);
 
+
             const response = await fetch(
-    `${API_URL}/auth/login`,
-    {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-            username: formData.username.trim(),
-            password: formData.password
-        })
-    }
-);
-            // const response = await fetch(
-            //     "http://localhost:5000/api/auth/login",
-            //     {
-            //         method: "POST",
+                `${API_URL}/auth/login`,
+                {
+                    method: "POST",
 
-            //         headers: {
-            //             "Content-Type": "application/json"
-            //         },
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
 
-            //         body: JSON.stringify({
-            //             username: formData.username.trim(),
-            //             password: formData.password
-            //         })
-            //     }
-            // );
+                    body: JSON.stringify({
+                        username: username.trim(),
+                        password: password,
+                    }),
+                }
+            );
 
 
             const data = await response.json();
 
 
-            // INVALID LOGIN
             if (!response.ok) {
 
                 Swal.fire({
-                    icon: "error",
-                    title: "Login Failed",
-                    text:
-                        data.message ||
-                        "Invalid username or password.",
+                    html: `
+                <div style="display: flex; flex-direction: column; align-items: center; text-align: center;">
+                    <div style="display: flex; align-items: center; gap: 12px;margin-bottom: 22px;">
+                        <div style="width: 48px; height: 48px; border-radius: 16px; background: #EF8535; display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 20px rgba(239,133,53,0.25);">
+                            <span style="color: white; font-size: 22px; font-weight: 900;">M</span>
+                        </div>
+                        <div style="text-align: left;">
+                            <div style="font-size: 18px;font-weight: 700;color: #0A4B57;line-height: 1.2;">
+                                MOSACH<span style="color: #EF8535;">ERP</span>
+                            </div>
+                            <div style="margin-top: 4px;font-size: 8px;color: #9CA3AF;text-transform: uppercase;letter-spacing: 2px;">
+                                Enterprise Management
+                            </div>
+                        </div>
+                    </div>
+                    <!-- SUCCESS ICON -->
+                    <div style="width: 58px;height: 58px;border-radius: 50%;background: rgba(239,133,53,0.10);color: #EF8535;display: flex;align-items: center;justify-content: center;font-size: 30px;font-weight: 700;margin-bottom: 14px;">
+                        X
+                    </div>
+                    <div style="font-size: 22px;font-weight: 700;color: #0A4B57;">
+                        Login Failed
+                    </div>
+                    <div style="margin-top: 7px;font-size: 13px;color: #9CA3AF;">
+                        ${data.message || "Invalid username or password."}
+                    </div>
+                </div>
+                `,
+                    // icon: "error",
+                    // title: "Login Failed",
+                    // text:
+                    //     data.message ||
+                    //     "Invalid username or password.",
                     confirmButtonColor: "#EF8535",
-                    confirmButtonText: "Try Again"
                 });
 
                 return;
             }
 
 
-            // TOKEN SAVE
-            localStorage.setItem("token", data.token);
+            // SAVE TOKEN
 
-console.log("LOGIN RESPONSE:", data);
-console.log("JWT TOKEN:", data.token);
-console.log("SAVED TOKEN:", localStorage.getItem("token"));
+            localStorage.setItem(
+                "token",
+                data.token
+            );
 
 
-            // USER SAVE
+            // SAVE USER
+
             if (data.user) {
 
                 localStorage.setItem(
@@ -139,154 +207,252 @@ console.log("SAVED TOKEN:", localStorage.getItem("token"));
             }
 
 
-            // SUCCESS
+            // SUCCESS MESSAGE
             await Swal.fire({
-                icon: "success",
-                title: "Login Successful",
-                text: "Welcome to MOSACH ERP.",
-                timer: 1200,
+                html: `
+                <div style="display: flex; flex-direction: column; align-items: center; text-align: center;">
+                    <div style="display: flex; align-items: center; gap: 12px;margin-bottom: 22px;">
+                        <div style="width: 48px; height: 48px; border-radius: 16px; background: #EF8535; display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 20px rgba(239,133,53,0.25);">
+                            <span style="color: white; font-size: 22px; font-weight: 900;">M</span>
+                        </div>
+                        <div style="text-align: left;">
+                            <div style="font-size: 18px;font-weight: 700;color: #0A4B57;line-height: 1.2;">
+                                MOSACH<span style="color: #EF8535;">ERP</span>
+                            </div>
+                            <div style="margin-top: 4px;font-size: 8px;color: #9CA3AF;text-transform: uppercase;letter-spacing: 2px;">
+                                Enterprise Management
+                            </div>
+                        </div>
+                    </div>
+                    <!-- SUCCESS ICON -->
+                    <div style="width: 58px;height: 58px;border-radius: 50%;background: rgba(239,133,53,0.10);color: #EF8535;display: flex;align-items: center;justify-content: center;font-size: 30px;font-weight: 700;margin-bottom: 14px;">
+                        ✓
+                    </div>
+                    <div style="font-size: 22px;font-weight: 700;color: #0A4B57;">
+                        Login Successful
+                    </div>
+                    <div style="margin-top: 7px;font-size: 13px;color: #9CA3AF;">
+                        Welcome to MOSACH ERP
+                    </div>
+                </div>
+                `,
+                timer: 2000,
                 showConfirmButton: false,
-                iconColor: "#EF8535"
+                background: "#ffffff",
+                width: "400px",
+                padding: "28px",
+                customClass: {
+                    popup: "rounded-[28px] shadow-2xl",
+                },
             });
 
 
-            // DASHBOARD
-            navigate("/dashboard");
 
+            navigate("/dashboard", {
+                replace: true,
+            });
 
-        } catch (error) {
+        }
+        catch (error) {
 
-            console.error("Login Error:", error);
-
+            console.error(
+                "Login Error:",
+                error
+            );
 
             Swal.fire({
                 icon: "error",
-                title: "Server Error",
+                title: "Connection Error",
                 text: "Unable to connect to server.",
-                confirmButtonColor: "#EF8535"
+                confirmButtonColor: "#EF8535",
             });
 
-        } finally {
+        }
+        finally {
 
             setLoading(false);
+
         }
     };
 
 
-return (
-    <div className="min-h-screen bg-[#F4F7FA] flex items-center justify-center p-4 sm:p-6 overflow-hidden">
+    return (
 
-        {/* BACKGROUND DECORATION */}
-        <div className="fixed inset-0 pointer-events-none overflow-hidden">
-
-            <div className="absolute -top-40 -left-40 w-[500px] h-[500px] rounded-full bg-[#0B4654]/10 blur-3xl" />
-
-            <div className="absolute -bottom-40 -right-40 w-[550px] h-[550px] rounded-full bg-[#EF8535]/10 blur-3xl" />
-
-            <div className="absolute top-1/2 left-1/2 w-[400px] h-[400px] -translate-x-1/2 -translate-y-1/2 rounded-full border border-[#0B4654]/5" />
-
-        </div>
-
-
-        {/* MAIN CARD */}
-        <div
-            className="
-                relative z-10
-                w-full max-w-[1100px]
-                min-h-[650px]
-                bg-white
-                rounded-[32px]
-                overflow-hidden
-                shadow-[0_30px_100px_rgba(15,45,55,0.16)]
-                border border-white
-                grid lg:grid-cols-[1fr_0.85fr]
-            "
-        >
+        <div className="
+            min-h-screen
+            bg-[#EF8535]/10
+            flex
+            items-center
+            justify-center
+            p-4
+            relative
+            overflow-hidden
+        ">
 
 
             {/* =====================================================
-                LEFT BRANDING PANEL
+                BACKGROUND DECORATION
             ===================================================== */}
 
-            <div
-                className="
+            <div className="
+                absolute
+                w-[420px]
+                h-[420px]
+                rounded-full
+                bg-[#0A4B57]/5
+                blur-3xl
+                -top-40
+                -left-40
+            " />
+
+            <div className="
+                absolute
+                w-[420px]
+                h-[420px]
+                rounded-full
+                bg-[#EF8535]/5
+                blur-3xl
+                -bottom-40
+                -right-40
+            " />
+
+
+            {/* Decorative circles */}
+
+            <div className="
+                absolute
+                top-10
+                right-10
+                w-24
+                h-24
+                rounded-full
+                border
+                border-[#0A4B57]/10
+            " />
+
+            <div className="
+                absolute
+                bottom-10
+                left-10
+                w-32
+                h-32
+                rounded-full
+                border
+                border-[#EF8535]/10
+            " />
+
+
+
+            {/* =====================================================
+                MAIN CARD
+            ===================================================== */}
+
+            <div className="
+                relative
+                z-10
+                w-full
+                max-w-[1100px]
+                min-h-[650px]
+                bg-white
+                rounded-[32px]
+                shadow-[0_30px_80px_rgba(10,75,87,0.13)]
+                overflow-hidden
+                grid
+                lg:grid-cols-2
+            ">
+
+
+                {/* =================================================
+                    LEFT SIDE
+                ================================================= */}
+
+                <div className="
+                    hidden
+                    lg:flex
                     relative
-                    hidden lg:flex
                     flex-col
                     justify-between
-                    overflow-hidden
                     p-12
-                    bg-[#083F4D]
-                "
-            >
-
-                {/* Decorative circles */}
-
-                <div className="
-                    absolute
-                    -top-32
-                    -right-32
-                    w-[420px]
-                    h-[420px]
-                    rounded-full
-                    border-[70px]
-                    border-white/[0.035]
-                " />
-
-                <div className="
-                    absolute
-                    -bottom-40
-                    -left-40
-                    w-[500px]
-                    h-[500px]
-                    rounded-full
-                    bg-[#EF8535]/[0.06]
-                " />
-
-                <div className="
-                    absolute
-                    top-[40%]
-                    right-[-80px]
-                    w-52
-                    h-52
-                    rounded-full
-                    border
-                    border-[#EF8535]/10
-                " />
+                    bg-[#0A4B57]
+                    text-white
+                    overflow-hidden
+                ">
 
 
-                {/* TOP */}
+                    {/* Decorative circle */}
 
-                <div className="relative z-10">
+                    <div className="
+                        absolute
+                        -top-32
+                        -right-32
+                        w-80
+                        h-80
+                        rounded-full
+                        bg-white/5
+                    " />
 
-                    {/* LOGO */}
+                    <div className="
+                        absolute
+                        -bottom-40
+                        -left-32
+                        w-96
+                        h-96
+                        rounded-full
+                        bg-[#EF8535]/10
+                    " />
 
-                    <div className="flex items-center gap-4">
 
-                        <div
-                            className="
-                                w-14 h-14
-                                rounded-2xl
-                                bg-gradient-to-br
-                                from-[#EF8535]
-                                to-[#D9681D]
-                                flex items-center justify-center
-                                shadow-[0_12px_30px_rgba(239,133,53,0.25)]
-                            "
-                        >
-                            <span className="text-white text-2xl font-black">
+
+                    {/* BRAND */}
+
+                    <div className="
+                        relative
+                        flex
+                        items-center
+                        gap-3
+                    ">
+
+                        <div className="
+                            w-12
+                            h-12
+                            rounded-2xl
+                            bg-[#EF8535]
+                            flex
+                            items-center
+                            justify-center
+                            shadow-lg
+                        ">
+
+                            <span className="
+                                text-2xl
+                                font-black
+                            ">
                                 M
                             </span>
+
                         </div>
+
 
                         <div>
 
-                            <h1 className="text-white text-2xl font-bold tracking-tight">
+                            <h1 className="
+                                text-xl
+                                font-bold
+                            ">
                                 MOSACH
+                                <span className="text-[#EF8535]">
+                                    ERP
+                                </span>
                             </h1>
 
-                            <p className="text-white/45 text-[11px] tracking-[0.25em] uppercase">
-                                Enterprise ERP
+
+                            <p className="
+                                text-[8px]
+                                text-white/40
+                                uppercase
+                                tracking-[0.25em]
+                            ">
+                                Enterprise Management
                             </p>
 
                         </div>
@@ -294,224 +460,343 @@ return (
                     </div>
 
 
+
                     {/* HERO */}
 
-                    <div className="mt-24 max-w-[460px]">
+                    <div className="
+                        relative
+                        max-w-[470px]
+                    ">
 
-                        <div
-                            className="
-                                inline-flex items-center gap-2
-                                px-3 py-1.5
-                                rounded-full
-                                bg-white/[0.06]
-                                border border-white/10
-                                text-white/60
-                                text-xs
-                            "
-                        >
+                        <div className="
+                            inline-flex
+                            items-center
+                            gap-2
+                            px-3
+                            py-1.5
+                            rounded-full
+                            bg-white/5
+                            border
+                            border-white/10
+                            text-white/60
+                            text-[9px]
+                            uppercase
+                            tracking-widest
+                        ">
 
-                            <span className="w-1.5 h-1.5 rounded-full bg-[#EF8535]" />
+                            <FaIndustry
+                                className="text-[#EF8535]"
+                                size={10}
+                            />
 
-                            Secure Business Management
+                            Smart ERP Platform
 
                         </div>
 
 
-                        <h2
-                            className="
-                                mt-6
-                                text-4xl
-                                xl:text-5xl
-                                font-bold
-                                leading-[1.08]
-                                text-white
-                            "
-                        >
-                            Confidence begins
+                        <h2 className="
+                            mt-6
+                            text-5xl
+                            font-bold
+                            leading-tight
+                            tracking-tight
+                        ">
+
+                            Your business.
+                            <br />
+
+                            One powerful
                             <br />
 
                             <span className="text-[#EF8535]">
-                                with MOSACH.
+                                system.
                             </span>
+
                         </h2>
 
 
                         <p className="
                             mt-6
-                            text-white/50
                             text-sm
                             leading-7
-                            max-w-[410px]
+                            text-white/45
                         ">
-                            A powerful enterprise platform designed to
-                            simplify operations, manage resources and
-                            keep your business connected.
+                            Manage production, inventory,
+                            customers, suppliers and daily
+                            business operations from one
+                            centralized platform.
                         </p>
 
-                    </div>
 
 
-                    {/* FEATURES */}
-
-                    <div className="mt-10 grid grid-cols-3 gap-3 max-w-[460px]">
+                        {/* FEATURE CARDS */}
 
                         <div className="
-                            rounded-2xl
-                            bg-white/[0.045]
-                            border border-white/[0.07]
-                            p-4
+                            mt-9
+                            grid
+                            grid-cols-3
+                            gap-3
                         ">
 
-                            <div className="text-[#EF8535] text-lg font-bold">
-                                24/7
+
+                            {/* CARD 1 */}
+
+                            <div className="
+                                p-4
+                                rounded-2xl
+                                bg-white/5
+                                border
+                                border-white/10
+                            ">
+
+                                <div className="
+                                    w-9
+                                    h-9
+                                    rounded-xl
+                                    bg-[#EF8535]/10
+                                    flex
+                                    items-center
+                                    justify-center
+                                    text-[#EF8535]
+                                ">
+
+                                    <FaChartLine size={14} />
+
+                                </div>
+
+
+                                <p className="
+                                    mt-3
+                                    text-xs
+                                    font-semibold
+                                    
+                                ">
+                                    Analytics
+                                </p>
+
+
+                                <p className="
+                                    mt-1
+                                    text-[9px]
+                                    text-white/30
+                                ">
+                                    Smart insights
+                                </p>
+
                             </div>
 
-                            <div className="text-white/40 text-[10px] mt-1">
-                                ACCESS
+
+
+                            {/* CARD 2 */}
+
+                            <div className="
+                                p-4
+                                rounded-2xl
+                                bg-white/5
+                                border
+                                border-white/10
+                            ">
+
+                                <div className="
+                                    w-9
+                                    h-9
+                                    rounded-xl
+                                    bg-[#EF8535]/10
+                                    flex
+                                    items-center
+                                    justify-center
+                                    text-[#EF8535]
+                                ">
+
+                                    <FaBoxes size={14} />
+
+                                </div>
+
+
+                                <p className="
+                                    mt-3
+                                    text-xs
+                                    font-semibold
+                                ">
+                                    Inventory
+                                </p>
+
+
+                                <p className="
+                                    mt-1
+                                    text-[9px]
+                                    text-white/30
+                                ">
+                                    Full control
+                                </p>
+
+                            </div>
+
+
+
+                            {/* CARD 3 */}
+
+                            <div className="
+                                p-4
+                                rounded-2xl
+                                bg-white/5
+                                border
+                                border-white/10
+                            ">
+
+                                <div className="
+                                    w-9
+                                    h-9
+                                    rounded-xl
+                                    bg-[#EF8535]/10
+                                    flex
+                                    items-center
+                                    justify-center
+                                    text-[#EF8535]
+                                ">
+
+                                    <FaUsers size={14} />
+
+                                </div>
+
+
+                                <p className="
+                                    mt-3
+                                    text-xs
+                                    font-semibold
+                                ">
+                                    Customers
+                                </p>
+
+
+                                <p className="
+                                    mt-1
+                                    text-[9px]
+                                    text-white/30
+                                ">
+                                    Easy management
+                                </p>
+
                             </div>
 
                         </div>
 
-
-                        <div className="
-                            rounded-2xl
-                            bg-white/[0.045]
-                            border border-white/[0.07]
-                            p-4
-                        ">
-
-                            <div className="text-[#EF8535] text-lg font-bold">
-                                100%
-                            </div>
-
-                            <div className="text-white/40 text-[10px] mt-1">
-                                SECURE
-                            </div>
-
-                        </div>
-
-
-                        <div className="
-                            rounded-2xl
-                            bg-white/[0.045]
-                            border border-white/[0.07]
-                            p-4
-                        ">
-
-                            <div className="text-[#EF8535] text-lg font-bold">
-                                ERP
-                            </div>
-
-                            <div className="text-white/40 text-[10px] mt-1">
-                                PLATFORM
-                            </div>
-
-                        </div>
-
                     </div>
 
-                </div>
 
 
-                {/* BOTTOM */}
-
-                <div className="relative z-10 flex items-center justify-between">
-
-                    <div>
-
-                        <p className="text-white/35 text-[10px] uppercase tracking-[0.2em]">
-                            Powered by
-                        </p>
-
-                        <p className="text-white/70 text-xs mt-1 font-medium">
-                            MOSACH International Pvt. Ltd.
-                        </p>
-
-                    </div>
-
+                    {/* FOOTER */}
 
                     <div className="
-                        flex items-center gap-2
-                        text-white/40
-                        text-[10px]
+                        relative
+                        flex
+                        items-center
+                        justify-between
+                        text-[9px]
+                        text-white/30
                     ">
 
-                        <span className="
-                            w-2 h-2
-                            rounded-full
-                            bg-green-400
-                            shadow-[0_0_8px_rgba(74,222,128,0.8)]
-                        " />
-
-                        System Online
-
-                    </div>
-
-                </div>
-
-            </div>
-
-
-            {/* =====================================================
-                RIGHT LOGIN PANEL
-            ===================================================== */}
-
-            <div className="
-                relative
-                flex
-                flex-col
-                justify-center
-                px-6
-                py-10
-                sm:px-12
-                lg:px-14
-                xl:px-20
-            ">
-
-
-                {/* MOBILE BRAND */}
-
-                <div className="lg:hidden text-center mb-9">
-
-                    <div
-                        className="
-                            mx-auto
-                            w-14 h-14
-                            rounded-2xl
-                            bg-gradient-to-br
-                            from-[#EF8535]
-                            to-[#D9681D]
-                            flex items-center justify-center
-                            shadow-lg
-                        "
-                    >
-
-                        <span className="text-white text-2xl font-black">
-                            M
+                        <span>
+                            © {new Date().getFullYear()} MOSACH International Pvt. Ltd.
                         </span>
 
+
+                        <div className="
+                            flex
+                            items-center
+                            gap-2
+                        ">
+
+                            <FaShieldAlt
+                                className="text-[#EF8535]"
+                                size={10}
+                            />
+
+                            Secure System
+
+                        </div>
+
                     </div>
-
-
-                    <h1 className="
-                        mt-3
-                        text-xl
-                        font-bold
-                        text-[#083F4D]
-                    ">
-                        MOSACH ERP
-                    </h1>
-
-                    <p className="text-gray-400 text-[10px] uppercase tracking-[0.2em]">
-                        Enterprise Resource Planning
-                    </p>
 
                 </div>
 
 
-                {/* LOGIN HEADER */}
 
-                <div className="max-w-[420px] w-full mx-auto">
+                {/* =================================================
+                    RIGHT SIDE
+                ================================================= */}
+
+                <div className="
+                    flex
+                    flex-col
+                    justify-center
+                    p-7
+                    sm:p-10
+                    lg:p-14
+                ">
+
+
+                    {/* MOBILE BRAND */}
+
+                    <div className="
+                        lg:hidden
+                        flex
+                        items-center
+                        gap-3
+                        mb-10
+                    ">
+
+                        <div className="
+                            w-11
+                            h-11
+                            rounded-xl
+                            bg-[#0A4B57]
+                            flex
+                            items-center
+                            justify-center
+                        ">
+
+                            <span className="
+                                text-[#EF8535]
+                                text-xl
+                                font-black
+                            ">
+                                M
+                            </span>
+
+                        </div>
+
+
+                        <div>
+
+                            <h1 className="
+                                text-lg
+                                font-bold
+                                text-[#0A4B57]
+                            ">
+                                MOSACH
+                                <span className="text-[#EF8535]">
+                                    ERP
+                                </span>
+                            </h1>
+
+
+                            <p className="
+                                text-[8px]
+                                uppercase
+                                tracking-widest
+                                text-gray-400
+                            ">
+                                Enterprise Management
+                            </p>
+
+                        </div>
+
+                    </div>
+
+
+
+                    {/* LOGIN TITLE */}
 
                     <div className="mb-8">
 
@@ -524,30 +809,28 @@ return (
                             rounded-full
                             bg-[#EF8535]/10
                             text-[#EF8535]
-                            text-[11px]
-                            font-semibold
+                            text-[9px]
+                            font-bold
+                            uppercase
+                            tracking-widest
                         ">
 
-                            <span className="
-                                w-1.5 h-1.5
-                                rounded-full
-                                bg-[#EF8535]"
-                            />
+                            <FaShieldAlt size={9} />
 
-                            ADMIN PORTAL
+                            Secure Login
 
                         </div>
 
 
                         <h2 className="
                             mt-5
-                            text-3xl
+                            text-4xl
                             font-bold
-                            text-[#123F4B]
+                            text-[#0A4B57]
                             tracking-tight
                         ">
                             Welcome back
-                         </h2>
+                        </h2>
 
 
                         <p className="
@@ -555,15 +838,19 @@ return (
                             text-sm
                             text-gray-400
                         ">
-                            Sign in to continue to your MOSACH ERP account.
+                            Sign in to access your MOSACH ERP.
                         </p>
 
                     </div>
 
 
-                    {/* LOGIN FORM */}
 
-                    <form onSubmit={handleSubmit}>
+                    {/* =================================================
+                        FORM
+                    ================================================= */}
+
+                    <form onSubmit={handleLogin}>
+
 
                         {/* USERNAME */}
 
@@ -571,12 +858,12 @@ return (
 
                             <label className="
                                 block
-                                text-[12px]
-                                font-bold
-                                text-[#123F4B]
-                                uppercase
-                                tracking-wide
                                 mb-2
+                                text-[10px]
+                                font-bold
+                                uppercase
+                                tracking-widest
+                                text-[#0A4B57]
                             ">
                                 Username
                             </label>
@@ -586,21 +873,22 @@ return (
 
                                 <div className="
                                     absolute
-                                    left-4
+                                    left-3
                                     top-1/2
                                     -translate-y-1/2
-                                    w-8 h-8
-                                    rounded-lg
-                                    bg-[#F3F6F8]
+                                    w-9
+                                    h-9
+                                    rounded-xl
+                                    bg-[#F1F5F6]
                                     flex
                                     items-center
                                     justify-center
-                                    transition
                                     group-focus-within:bg-[#EF8535]/10
+                                    transition
                                 ">
 
                                     <FaUser
-                                        size={13}
+                                        size={12}
                                         className="
                                             text-gray-400
                                             group-focus-within:text-[#EF8535]
@@ -612,29 +900,31 @@ return (
 
                                 <input
                                     type="text"
-                                    name="username"
-                                    value={formData.username}
-                                    onChange={handleChange}
-                                    placeholder="Enter your username"
+                                    value={username}
+                                    onChange={(e) =>
+                                        setUsername(e.target.value)
+                                    }
+                                    placeholder="Enter username"
                                     autoComplete="username"
+
                                     className="
                                         w-full
-                                        h-[58px]
+                                        h-14
                                         pl-14
                                         pr-4
                                         rounded-2xl
                                         bg-[#F7F9FA]
                                         border
-                                        border-[#E8EDF0]
+                                        border-[#E4EAEC]
                                         outline-none
-                                        text-[#123F4B]
                                         text-sm
+                                        text-[#0A4B57]
                                         placeholder:text-gray-400
-                                        transition-all
                                         focus:bg-white
                                         focus:border-[#EF8535]
                                         focus:ring-4
                                         focus:ring-[#EF8535]/10
+                                        transition
                                     "
                                 />
 
@@ -643,18 +933,19 @@ return (
                         </div>
 
 
+
                         {/* PASSWORD */}
 
-                        <div className="mb-6">
+                        <div className="mb-5">
 
                             <label className="
                                 block
-                                text-[12px]
-                                font-bold
-                                text-[#123F4B]
-                                uppercase
-                                tracking-wide
                                 mb-2
+                                text-[10px]
+                                font-bold
+                                uppercase
+                                tracking-widest
+                                text-[#0A4B57]
                             ">
                                 Password
                             </label>
@@ -664,21 +955,22 @@ return (
 
                                 <div className="
                                     absolute
-                                    left-4
+                                    left-3
                                     top-1/2
                                     -translate-y-1/2
-                                    w-8 h-8
-                                    rounded-lg
-                                    bg-[#F3F6F8]
+                                    w-9
+                                    h-9
+                                    rounded-xl
+                                    bg-[#F1F5F6]
                                     flex
                                     items-center
                                     justify-center
-                                    transition
                                     group-focus-within:bg-[#EF8535]/10
+                                    transition
                                 ">
 
                                     <FaLock
-                                        size={13}
+                                        size={12}
                                         className="
                                             text-gray-400
                                             group-focus-within:text-[#EF8535]
@@ -694,29 +986,31 @@ return (
                                             ? "text"
                                             : "password"
                                     }
-                                    name="password"
-                                    value={formData.password}
-                                    onChange={handleChange}
-                                    placeholder="Enter your password"
+                                    value={password}
+                                    onChange={(e) =>
+                                        setPassword(e.target.value)
+                                    }
+                                    placeholder="Enter password"
                                     autoComplete="current-password"
+
                                     className="
                                         w-full
-                                        h-[58px]
+                                        h-14
                                         pl-14
                                         pr-14
                                         rounded-2xl
                                         bg-[#F7F9FA]
                                         border
-                                        border-[#E8EDF0]
+                                        border-[#E4EAEC]
                                         outline-none
-                                        text-[#123F4B]
                                         text-sm
+                                        text-[#0A4B57]
                                         placeholder:text-gray-400
-                                        transition-all
                                         focus:bg-white
                                         focus:border-[#EF8535]
                                         focus:ring-4
                                         focus:ring-[#EF8535]/10
+                                        transition
                                     "
                                 />
 
@@ -724,15 +1018,19 @@ return (
                                 <button
                                     type="button"
                                     onClick={() =>
-                                        setShowPassword(!showPassword)
+                                        setShowPassword(
+                                            !showPassword
+                                        )
                                     }
+
                                     className="
                                         absolute
-                                        right-4
+                                        right-2
                                         top-1/2
                                         -translate-y-1/2
-                                        w-8 h-8
-                                        rounded-lg
+                                        w-10
+                                        h-10
+                                        rounded-xl
                                         flex
                                         items-center
                                         justify-center
@@ -744,9 +1042,9 @@ return (
                                 >
 
                                     {showPassword ? (
-                                        <FaEyeSlash size={15} />
+                                        <FaEyeSlash size={14} />
                                     ) : (
-                                        <FaEye size={15} />
+                                        <FaEye size={14} />
                                     )}
 
                                 </button>
@@ -756,7 +1054,8 @@ return (
                         </div>
 
 
-                        {/* SECURITY ROW */}
+
+                        {/* SECURITY INFO */}
 
                         <div className="
                             flex
@@ -769,30 +1068,41 @@ return (
                                 flex
                                 items-center
                                 gap-2
-                                text-[11px]
+                                text-[10px]
                                 text-gray-400
                             ">
 
-                                <FaShieldAlt
+                                <FaCheckCircle
                                     className="text-[#EF8535]"
-                                    size={12}
+                                    size={11}
                                 />
 
-                                Secure login
+                                Secure authentication
 
                             </div>
 
 
-                            <span className="
-                                text-[10px]
-                                text-gray-300
-                                uppercase
-                                tracking-wider
+                            <div className="
+                                flex
+                                items-center
+                                gap-1.5
+                                text-[9px]
+                                text-green-500
                             ">
-                                Protected access
-                            </span>
+
+                                <span className="
+                                    w-1.5
+                                    h-1.5
+                                    rounded-full
+                                    bg-green-500
+                                " />
+
+                                System Online
+
+                            </div>
 
                         </div>
+
 
 
                         {/* LOGIN BUTTON */}
@@ -800,19 +1110,13 @@ return (
                         <button
                             type="submit"
                             disabled={loading}
+
                             className="
-                                relative
-                                overflow-hidden
                                 w-full
-                                h-[58px]
+                                h-14
                                 rounded-2xl
-                                bg-gradient-to-r
-                                from-[#EF8535]
-                                to-[#D96B20]
-                                hover:from-[#E57B2B]
-                                hover:to-[#C85E18]
-                                active:scale-[0.985]
-                                disabled:opacity-70
+                                bg-[#0A4B57]
+                                hover:bg-[#083E48]
                                 text-white
                                 font-bold
                                 text-sm
@@ -820,35 +1124,26 @@ return (
                                 items-center
                                 justify-center
                                 gap-3
-                                shadow-[0_12px_28px_rgba(239,133,53,0.25)]
-                                transition-all
+                                shadow-lg
+                                disabled:opacity-60
+                                disabled:cursor-not-allowed
+                                active:scale-[0.98]
+                                transition
+                                group
                             "
                         >
-
-                            {/* Shine */}
-
-                            <span className="
-                                absolute
-                                inset-y-0
-                                -left-20
-                                w-16
-                                bg-white/20
-                                skew-x-[-20deg]
-                                transition-all
-                                duration-700
-                                group-hover:left-[120%]
-                            " />
-
 
                             {loading ? (
 
                                 <>
+
                                     <span className="
-                                        w-5 h-5
+                                        w-5
+                                        h-5
+                                        rounded-full
                                         border-2
                                         border-white/30
                                         border-t-white
-                                        rounded-full
                                         animate-spin
                                     " />
 
@@ -859,18 +1154,22 @@ return (
                             ) : (
 
                                 <>
-                                    Sign In
+
+                                    Sign In to MOSACH ERP
 
                                     <span className="
-                                        w-7 h-7
-                                        rounded-lg
-                                        bg-white/15
+                                        w-8
+                                        h-8
+                                        rounded-xl
+                                        bg-[#EF8535]
                                         flex
                                         items-center
                                         justify-center
+                                        group-hover:translate-x-1
+                                        transition
                                     ">
 
-                                        <FaArrowRight size={12} />
+                                        <FaArrowRight size={11} />
 
                                     </span>
 
@@ -883,23 +1182,28 @@ return (
                     </form>
 
 
-                    {/* BOTTOM SECURITY CARD */}
+
+                    {/* =================================================
+                        SECURITY CARD
+                    ================================================= */}
 
                     <div className="
                         mt-7
                         p-4
                         rounded-2xl
                         bg-[#F7F9FA]
-                        border border-[#EDF1F3]
+                        border
+                        border-[#E7EDEE]
                         flex
                         items-center
                         gap-3
                     ">
 
                         <div className="
-                            w-10 h-10
+                            w-10
+                            h-10
                             rounded-xl
-                            bg-[#083F4D]
+                            bg-[#0A4B57]
                             flex
                             items-center
                             justify-center
@@ -908,7 +1212,7 @@ return (
 
                             <FaShieldAlt
                                 className="text-[#EF8535]"
-                                size={15}
+                                size={14}
                             />
 
                         </div>
@@ -919,17 +1223,18 @@ return (
                             <p className="
                                 text-xs
                                 font-bold
-                                text-[#123F4B]
+                                text-[#0A4B57]
                             ">
-                                Enterprise Security
+                                Protected Access
                             </p>
 
+
                             <p className="
-                                text-[10px]
+                                text-[9px]
                                 text-gray-400
                                 mt-1
                             ">
-                                Your credentials are protected with
+                                Your session is protected by
                                 secure authentication.
                             </p>
 
@@ -938,38 +1243,27 @@ return (
                     </div>
 
 
-                    {/* FOOTER */}
 
-                    <div className="
+                    {/* COPYRIGHT */}
+
+                    <p className="
                         text-center
-                        mt-7
+                        mt-6
+                        text-[9px]
+                        text-gray-300
                     ">
-
-                        <p className="
-                            text-[10px]
-                            text-gray-400
-                        ">
-                            © {new Date().getFullYear()} MOSACH International Pvt. Ltd.
-                        </p>
-
-                        <p className="
-                            text-[9px]
-                            text-gray-300
-                            mt-1
-                        ">
-                            Authorized access only
-                        </p>
-
-                    </div>
+                        © {new Date().getFullYear()}
+                        {" "}
+                        MOSACH International Pvt. Ltd.
+                    </p>
 
                 </div>
 
             </div>
 
         </div>
-
-    </div>
-);
-};
+    );
+}
 
 export default Login;
+

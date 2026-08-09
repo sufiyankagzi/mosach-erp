@@ -10,16 +10,67 @@ const Header = ({ setIsOpen }) => {
 
         {/* Mobile Menu Button */}
         <button
-          className="lg:hidden text-[#0A4B57]"
+          className=" text-[#0A4B57]"
           onClick={() => setIsOpen(true)}
         >
           <HiOutlineMenu size={28} />
         </button>
 
-        <h2 className="text-lg sm:text-xl font-semibold text-[#0A4B57]">
-          Dashboard
-        </h2>
+         <div className="
+                        relative
+                        flex
+                        items-center
+                        gap-3
+                    ">
 
+                        <div className="
+                            w-12
+                            h-12
+                            rounded-2xl
+                            bg-[#EF8535]
+                            flex
+                            items-center
+                            justify-center
+                            shadow-lg
+                        ">
+
+                            <span className="
+                                text-2xl
+                                font-black
+                                text-white
+                            ">
+                                M
+                            </span>
+
+                        </div>
+
+
+                        <div>
+
+                            <h1 className="
+                                text-xl
+                                font-bold
+                                text-[#0A4B57]
+                            ">
+                                MOSACH
+                                <span className="text-[#EF8535]">
+                                    ERP
+                                </span>
+                            </h1>
+
+
+                            <p className="
+                                text-[8px]
+                                text-black/80
+                                uppercase
+                                tracking-[0.25em]
+                            ">
+                                Enterprise Management
+                            </p>
+
+                        </div>
+
+                    </div>
       </div>
 
       {/* Right Side */}

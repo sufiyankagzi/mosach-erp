@@ -6,8 +6,9 @@ import {
   MdInventory,
   MdFactory,
   MdAssessment,
-  MdSettings,
+  MdSettings,MdLogout ,
 } from "react-icons/md";
+
 
 import {
   FaBuilding,
@@ -126,6 +127,12 @@ const menuData = [
     name: "Settings",
     icon: MdSettings,
     submenu: [],
+  },
+
+  {
+    name: "Logout",
+    icon: MdLogout ,
+    action: "logout",
   },
 ];
 
