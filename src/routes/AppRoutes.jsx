@@ -17,112 +17,45 @@ import Settings from "../pages/settings/Settings";
 
 import Company from "../pages/masters/company/Company";
 import AddCompany from "../pages/masters/company/AddCompany";
+import Users from "../pages/masters/user/Users"
+import AddUser from "../pages/masters/user/AddUser";
 
 
 const AppRoutes = () => {
 
     return (
         <Routes>
-
             {/* =========================
                 LOGIN
             ========================= */}
-            <Route
-                path="/login"
-                element={<Login />}
-            />
-
-
+            <Route path="/login"element={<Login />}/>
             {/* =========================
                 DEFAULT
             ========================= */}
-            <Route
-                path="/"
-                element={<Navigate to="/login" replace />}
-            />
-
-
+            <Route path="/"element={<Navigate to="/login" replace />}/>
             {/* =========================
                 PROTECTED ERP ROUTES
             ========================= */}
-
             <Route element={<ProtectedRoute />}>
-
                 {/* MAIN ERP LAYOUT */}
                 <Route element={<MainLayout />}>
-
-                    {/* DASHBOARD */}
-                    <Route
-                        path="/dashboard"
-                        element={<Dashboard />}
-                    />
-
-                    {/* MASTERS */}
-                    <Route
-                        path="/masters"
-                        element={<Masters />}
-                    />
-
-                    {/* PURCHASE */}
-                    <Route
-                        path="/purchase"
-                        element={<Purchase />}
-                    />
-
-                    {/* SALES */}
-                    <Route
-                        path="/sales"
-                        element={<Sales />}
-                    />
-
-                    {/* INVENTORY */}
-                    <Route
-                        path="/inventory"
-                        element={<Inventory />}
-                    />
-
-                    {/* PRODUCTION */}
-                    <Route
-                        path="/production"
-                        element={<Production />}
-                    />
-
-                    {/* REPORTS */}
-                    <Route
-                        path="/reports"
-                        element={<Reports />}
-                    />
-
-                    {/* SETTINGS */}
-                    <Route
-                        path="/settings"
-                        element={<Settings />}
-                    />
-
-
-                    {/* =========================
-                        COMPANY
-                    ========================= */}
-
-                    <Route
-                        path="/masters/company"
-                        element={<Company />}
-                    />
-
-                    <Route
-                        path="/masters/company/add"
-                        element={<AddCompany />}
-                    />
-
-                    <Route
-                        path="/masters/company/edit/:id"
-                        element={<AddCompany />}
-                    />
-
+                    <Route path="/dashboard"element={<Dashboard />}/>
+                    <Route path="/masters"element={<Masters />}/>
+                    <Route path="/purchase"element={<Purchase />}/>
+                    <Route path="/sales"element={<Sales />}/>
+                    <Route path="/inventory" element={<Inventory />}/>
+                    <Route path="/production"element={<Production />}/>
+                    <Route path="/reports" element={<Reports />}/>
+                    <Route path="/settings" element={<Settings />}/>
+                    <Route path="/masters/company" element={<Company />}/>
+                    <Route path="/masters/company/add" element={<AddCompany />}/>
+                    <Route path="/masters/company/edit/:id"element={<AddCompany />}/>
+                    {/* <Route path="/masters/users" element={<Company />}/> */}
+                    <Route path="/masters/users" element={<Users/>}/>
+                    <Route path="/masters/users/add" element={<AddUser />}/>
+                    <Route path="/masters/users/edit/:id"element={<AddUser />}/>s
                 </Route>
-
             </Route>
-
         </Routes>
     );
 };

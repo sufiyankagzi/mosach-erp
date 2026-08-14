@@ -1115,8 +1115,8 @@ function Login() {
                                 w-full
                                 h-14
                                 rounded-2xl
-                                bg-[#0A4B57]
-                                hover:bg-[#083E48]
+                                bg-[#EF8535]
+                                // hover:bg-[#083E48]
                                 text-white
                                 font-bold
                                 text-sm
@@ -1161,12 +1161,14 @@ function Login() {
                                         w-8
                                         h-8
                                         rounded-xl
-                                        bg-[#EF8535]
+                                        bg-white
+                                    
                                         flex
                                         items-center
                                         justify-center
                                         group-hover:translate-x-1
                                         transition
+                                        text-[#083E48]
                                     ">
 
                                         <FaArrowRight size={11} />

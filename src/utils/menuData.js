@@ -44,41 +44,30 @@ const menuData = [
         path: "/masters/users",
       },
       {
-        name: "Branch",
+        name: "Sales Person",
         icon: FaCodeBranch,
-        path: "/masters/branch",
+        path: "/masters/salesperson",
       },
-      
-      {
-        name: "Supplier",
-        icon: FaUsers,
-        path: "/masters/supplier",
-      },
-     
-      {
-        name: "Customer",
-        icon: FaUsers,
-        path: "/masters/customer",
-      },
-      {
-        name: "Brand",
-        icon: FaTags,
-        path: "/masters/brand",
+       {
+        name: "Group",
+        icon: FaBoxes,
+        path: "/masters/group",
       },
       {
         name: "Category",
         icon: FaBoxes,
         path: "/masters/category",
       },
-      {
-        name: "Group",
-        icon: FaBoxes,
-        path: "/masters/group",
-      },
+     
       {
         name: "Color",
         icon: FaPalette,
         path: "/masters/color",
+      },
+      {
+        name: "Size Group",
+        icon: FaRuler,
+        path: "/masters/sizegroup",
       },
       {
         name: "Size",
@@ -86,35 +75,23 @@ const menuData = [
         path: "/masters/size",
       },
       {
-        name: "Item Master",
+        name: "Article",
         icon: FaBoxes,
-        path: "/masters/itemmaster",
+        path: "/masters/article",
       },
     ],
   },
 
   {
-    name: "Purchase",
-    icon: MdShoppingCart,
-    submenu: [],
-  },
-
-  {
-    name: "Sales",
-    icon: MdPointOfSale,
-    submenu: [],
-  },
-
-  {
-    name: "Inventory",
-    icon: MdInventory,
-    submenu: [],
-  },
-
-  {
-    name: "Production",
+    name: "Vouchers",
     icon: MdFactory,
-    submenu: [],
+    submenu: [
+      {
+        name:"Order",
+        icon: MdFactory,
+        path:"/voucher/order"
+      }
+    ],
   },
 
   {
