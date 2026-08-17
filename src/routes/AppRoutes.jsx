@@ -19,6 +19,8 @@ import Company from "../pages/masters/company/Company";
 import AddCompany from "../pages/masters/company/AddCompany";
 import Users from "../pages/masters/user/Users"
 import AddUser from "../pages/masters/user/AddUser";
+import SalesPerson from "../pages/masters/salesperson/SalesPerson";
+import AddSalesPerson from "../pages/masters/salesperson/AddSalesPerson"
 
 
 const AppRoutes = () => {
@@ -50,10 +52,15 @@ const AppRoutes = () => {
                     <Route path="/masters/company" element={<Company />}/>
                     <Route path="/masters/company/add" element={<AddCompany />}/>
                     <Route path="/masters/company/edit/:id"element={<AddCompany />}/>
-                    {/* <Route path="/masters/users" element={<Company />}/> */}
+                    {/* USERS */}
                     <Route path="/masters/users" element={<Users/>}/>
                     <Route path="/masters/users/add" element={<AddUser />}/>
-                    <Route path="/masters/users/edit/:id"element={<AddUser />}/>s
+                    <Route path="/masters/users/edit/:id"element={<AddUser />}/>
+                    {/* SALES PERSON */}
+                    <Route path="/masters/salesperson" element={<SalesPerson/>}/>
+                    <Route path="/masters/salesperson/add" element={<AddSalesPerson />}/>
+                    <Route path="/masters/salesperson/edit/:id"element={<AddSalesPerson />}/>
+                    
                 </Route>
             </Route>
         </Routes>
