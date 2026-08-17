@@ -21,6 +21,8 @@ import Users from "../pages/masters/user/Users"
 import AddUser from "../pages/masters/user/AddUser";
 import SalesPerson from "../pages/masters/salesperson/SalesPerson";
 import AddSalesPerson from "../pages/masters/salesperson/AddSalesPerson"
+import Gender from "../pages/masters/gender/Gender";
+import AddGender from "../pages/masters/gender/AddGender";
 
 
 const AppRoutes = () => {
@@ -60,7 +62,12 @@ const AppRoutes = () => {
                     <Route path="/masters/salesperson" element={<SalesPerson/>}/>
                     <Route path="/masters/salesperson/add" element={<AddSalesPerson />}/>
                     <Route path="/masters/salesperson/edit/:id"element={<AddSalesPerson />}/>
-                    
+
+                    {/* SALES PERSON */}
+                    <Route path="/masters/gender" element={<Gender/>}/>
+                    <Route path="/masters/gender/add" element={<AddGender />}/>
+                    <Route path="/masters/gender/edit/:id"element={<AddGender />}/>
+
                 </Route>
             </Route>
         </Routes>

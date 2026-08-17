@@ -48,6 +48,11 @@ const menuData = [
         icon: FaCodeBranch,
         path: "/masters/salesperson",
       },
+      {
+        name: "Gender",
+        icon: FaCodeBranch,
+        path: "/masters/gender",
+      },
        {
         name: "Group",
         icon: FaBoxes,
