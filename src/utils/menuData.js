@@ -54,15 +54,11 @@ const menuData = [
         path: "/masters/gender",
       },
        {
-        name: "Group",
-        icon: FaBoxes,
-        path: "/masters/group",
-      },
-      {
         name: "Category",
         icon: FaBoxes,
         path: "/masters/category",
       },
+      
      
       {
         name: "Color",

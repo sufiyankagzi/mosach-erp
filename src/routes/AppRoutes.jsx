@@ -23,6 +23,11 @@ import SalesPerson from "../pages/masters/salesperson/SalesPerson";
 import AddSalesPerson from "../pages/masters/salesperson/AddSalesPerson"
 import Gender from "../pages/masters/gender/Gender";
 import AddGender from "../pages/masters/gender/AddGender";
+import Category from "../pages/masters/category/Category";
+import AddCategory from "../pages/masters/category/AddCategory";
+import Color from "../pages/masters/color/Color";
+import AddColor from "../pages/masters/color/AddColor";
+
 
 
 const AppRoutes = () => {
@@ -67,6 +72,16 @@ const AppRoutes = () => {
                     <Route path="/masters/gender" element={<Gender/>}/>
                     <Route path="/masters/gender/add" element={<AddGender />}/>
                     <Route path="/masters/gender/edit/:id"element={<AddGender />}/>
+
+                    {/* SALES CATEGORY */}
+                    <Route path="/masters/category" element={<Category/>}/>
+                    <Route path="/masters/category/add" element={<AddCategory />}/>
+                    <Route path="/masters/category/edit/:id"element={<AddCategory />}/>
+
+                    {/* COLOR */}
+                    <Route path="/masters/color" element={<Color/>}/>
+                    <Route path="/masters/color/add" element={<AddColor />}/>
+                    <Route path="/masters/color/edit/:id"element={<AddColor />}/>
 
                 </Route>
             </Route>
