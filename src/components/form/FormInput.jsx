@@ -1,6 +1,6 @@
-import React from "react";
+import React, { forwardRef } from "react";
 
-const FormInput = ({
+const FormInput = forwardRef(({
   label,
   name,
   value,
@@ -20,7 +20,7 @@ const FormInput = ({
   next,
   onLastEnter,
   className = "",
-}) => {
+}, ref) => {
 
   const handleKeyDown = (e) => {
 
@@ -28,28 +28,52 @@ const FormInput = ({
 
       e.preventDefault();
 
+      // Agar next field diya hai
       if (next) {
-        document.getElementsByName(next)[0]?.focus();
-      } else if (onLastEnter) {
-        onLastEnter();
+
+        document
+          .getElementsByName(next)[0]
+          ?.focus();
+
       }
 
+      // Agar last field hai
+      else if (onLastEnter) {
+
+        onLastEnter();
+
+      }
+
+    }
+
+    // Parent se onKeyDown bhi diya ho to
+    if (onKeyDown) {
+      onKeyDown(e);
     }
 
   };
 
   return (
     <div className="w-full">
-      {/* Label */}
+
+      {/* LABEL */}
       {label && (
         <label className="block mb-1 text-sm font-medium text-slate-700">
+
           {label}
-          {required && <span className="text-red-500"> *</span>}
+
+          {required && (
+            <span className="text-red-500">
+              {" "}*
+            </span>
+          )}
+
         </label>
       )}
 
-      {/* Input */}
+      {/* INPUT */}
       <input
+        ref={ref}
         type={type}
         name={name}
         value={value}
@@ -79,14 +103,15 @@ const FormInput = ({
         `}
       />
 
-      {/* Error */}
+      {/* ERROR */}
       {error && (
         <p className="mt-1 text-xs text-red-500">
           {error}
         </p>
       )}
+
     </div>
   );
-};
+});
 
 export default FormInput;

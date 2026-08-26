@@ -30,6 +30,7 @@ import AddColor from "../pages/masters/color/AddColor";
 import SizeGroup from "../pages/masters/sizegroup/SizeGroup";
 import AddSizeGroup from "../pages/masters/sizegroup/AddSizeGroup";
 import Size from "../pages/masters/size/Size";
+import AddSize from "../pages/masters/size/AddSize";
 
 
 
@@ -92,7 +93,9 @@ const AppRoutes = () => {
                     <Route path="/masters/sizegroup/edit/:id"element={<AddSizeGroup />}/>
 
                     {/* SIZE */}
-                    <Route path="/masters/SIZE" element={<Size/>}/>
+                    <Route path="/masters/size" element={<Size/>}/>
+                    <Route path="/masters/size/add" element={<AddSize />}/>
+                    <Route path="/masters/size/edit/:id"element={<AddSize />}/>
 
                 </Route>
             </Route>
