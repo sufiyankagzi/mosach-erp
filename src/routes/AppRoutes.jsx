@@ -31,6 +31,8 @@ import SizeGroup from "../pages/masters/sizegroup/SizeGroup";
 import AddSizeGroup from "../pages/masters/sizegroup/AddSizeGroup";
 import Size from "../pages/masters/size/Size";
 import AddSize from "../pages/masters/size/AddSize";
+import Article from "../pages/masters/article/article";
+import AddArticle from "../pages/masters/article/AddArticle";
 
 
 
@@ -96,6 +98,11 @@ const AppRoutes = () => {
                     <Route path="/masters/size" element={<Size/>}/>
                     <Route path="/masters/size/add" element={<AddSize />}/>
                     <Route path="/masters/size/edit/:id"element={<AddSize />}/>
+
+                    {/* ARTICLE */}
+                    <Route path="/masters/article" element={<Article/>}/>
+                    <Route path="/masters/article/add" element={<AddArticle />}/>
+                    <Route path="/masters/article/edit/:id"element={<AddArticle />}/>
 
                 </Route>
             </Route>
