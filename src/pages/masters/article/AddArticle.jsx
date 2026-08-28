@@ -16,6 +16,7 @@ const AddArticle = () => {
   const genderInputRef = useRef(null);
   const colorInputRef = useRef(null);
   const fileInputRef = useRef(null);
+  const isActiveInputRef = useRef(null);
 
   const navigate = useNavigate();
 
@@ -397,7 +398,7 @@ const AddArticle = () => {
   // ========================================
 
   const getImages = async () => {
-    
+
     if (!id) return;
 
     try {
@@ -1441,6 +1442,13 @@ const AddArticle = () => {
                   loading
                 }
 
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    isActiveInputRef.current?.focus();
+                  }
+                }}
+
                 className="w-full border rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
 
               >
@@ -1493,7 +1501,7 @@ const AddArticle = () => {
 
 
                 <select
-
+                  ref={isActiveInputRef}
                   name="isactive"
 
                   value={
@@ -1589,10 +1597,9 @@ const AddArticle = () => {
                         px-4
                         py-2
                         transition
-                        ${
-                          checked
-                            ? "bg-[#0A4B57] text-white border-[#0A4B57]"
-                            : "bg-white text-slate-700 hover:bg-gray-50"
+                        ${checked
+                          ? "bg-[#0A4B57] text-white border-[#0A4B57]"
+                          : "bg-white text-slate-700 hover:bg-gray-50"
                         }
                       `}
 
@@ -1690,10 +1697,9 @@ const AddArticle = () => {
                         px-4
                         py-2
                         transition
-                        ${
-                          checked
-                            ? "bg-[#0A4B57] text-white border-[#0A4B57]"
-                            : "bg-white text-slate-700 hover:bg-gray-50"
+                        ${checked
+                          ? "bg-[#0A4B57] text-white border-[#0A4B57]"
+                          : "bg-white text-slate-700 hover:bg-gray-50"
                         }
                       `}
 
@@ -1906,32 +1912,32 @@ const AddArticle = () => {
                         /> */}
 
                         <img
-  src={`https://mosach-erp-server.onrender.com${item.imageurl}`}
-  alt="Article"
-  className="w-full h-32 object-cover"
-  onLoad={() => {
-    console.log("IMAGE LOADED:", item.imageurl);
-  }}
-  onError={(e) => {
-    console.error(
-      "IMAGE LOAD ERROR:",
-      `https://mosach-erp-server.onrender.com${item.imageurl}`
-    );
-  }}
-/>
+                          src={`https://mosach-erp-server.onrender.com${item.imageurl}`}
+                          alt="Article"
+                          className="w-full h-32 object-cover"
+                          onLoad={() => {
+                            console.log("IMAGE LOADED:", item.imageurl);
+                          }}
+                          onError={(e) => {
+                            console.error(
+                              "IMAGE LOAD ERROR:",
+                              `https://mosach-erp-server.onrender.com${item.imageurl}`
+                            );
+                          }}
+                        />
 
 
                         {Number(
                           item.isprimary
                         ) === 1 && (
 
-                          <span className="absolute top-2 left-2 bg-[#0A4B57] text-white text-xs px-2 py-1 rounded">
+                            <span className="absolute top-2 left-2 bg-[#0A4B57] text-white text-xs px-2 py-1 rounded">
 
-                            Primary
+                              Primary
 
-                          </span>
+                            </span>
 
-                        )}
+                          )}
 
 
                         <button
@@ -2090,7 +2096,7 @@ const AddArticle = () => {
         </div>
 
       </div>
-      
+
 
 
       {/* ========================================
