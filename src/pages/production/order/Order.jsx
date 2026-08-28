@@ -15,25 +15,29 @@ const Order = () => {
   // ========================================
   // GET ORDER
   // ========================================
-  const getOrder = async () => {
-    try {
-      const res = await api.get("/order");
+ const getOrder = async () => {
+  try {
+    const res = await api.get("/order");
 
-      console.log("Order API Response:", res.data);
+    console.log("Order API Response:", res.data);
+    console.log("Order Data:", res.data?.data);
 
-      setOrder(res.data);
-    } catch (error) {
-      console.log("Get Order Error:", error);
+    setOrder(Array.isArray(res.data?.data) ? res.data.data : []);
 
-      Swal.fire({
-        icon: "error",
-        title: "Failed",
-        text:
-          error.response?.data?.message ||
-          "Unable to load order.",
-      });
-    }
-  };
+  } catch (error) {
+    console.log("Get Order Error:", error);
+
+    Swal.fire({
+      icon: "error",
+      title: "Failed",
+      text:
+        error.response?.data?.message ||
+        "Unable to load order.",
+    });
+
+    setOrder([]);
+  }
+};
 
   // ========================================
   // DELETE ORDER
@@ -84,15 +88,19 @@ const Order = () => {
   // ========================================
   // SEARCH
   // ========================================
-  const filteredOrder = order.filter((order) => {
-    const keyword = search.trim().toLowerCase();
+const filteredOrder = order.filter((item) => {
+  const keyword = search.trim().toLowerCase();
 
-    if (!keyword) return true;
+  if (!keyword) return true;
 
-    return (
-      order.orderid?.toLowerCase().includes(keyword)
-    );
-  });
+  return (
+    String(item.orderid || "").toLowerCase().includes(keyword) ||
+    String(item.orderno || "").toLowerCase().includes(keyword) ||
+    String(item.orderdate || "").toLowerCase().includes(keyword) ||
+    String(item.salesperson || "").toLowerCase().includes(keyword) ||
+    String(item.totalqty || "").toLowerCase().includes(keyword)
+  );
+});
 
   // ========================================
   // LOAD ORDER

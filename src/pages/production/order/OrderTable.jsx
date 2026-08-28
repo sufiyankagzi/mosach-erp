@@ -28,6 +28,18 @@ const OrderTable = ({ order, onDelete }) => {
                 Order Date
               </th>
 
+               <th className="p-3 text-center">
+                Sales Person
+              </th>
+
+               <th className="p-3 text-center">
+                Total Qty.
+              </th>
+
+               <th className="p-3 text-center">
+                Status
+              </th>
+
               <th className="p-3 text-center">
                 Action
               </th>
@@ -76,8 +88,18 @@ const OrderTable = ({ order, onDelete }) => {
 
                   {/* ORDER DATE */}
 
+                 <td className="p-3 text-center font-medium">
+  {item.orderdate
+    ? new Date(item.orderdate).toLocaleDateString("en-GB")
+    : ""}
+</td>
+
                   <td className="p-3 text-center font-medium">
-                    {item.orderdate}
+                    {item.salesperson}
+                  </td>
+
+                  <td className="p-3 text-center font-medium">
+                    {item.totalqty}
                   </td>
 
 

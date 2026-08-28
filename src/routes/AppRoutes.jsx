@@ -34,6 +34,7 @@ import AddSize from "../pages/masters/size/AddSize";
 import Article from "../pages/masters/article/article";
 import AddArticle from "../pages/masters/article/AddArticle";
 import Order from "../pages/production/order/Order";
+import AddOrder from "../pages/production/order/AddOrder";
 
 
 
@@ -107,6 +108,9 @@ const AppRoutes = () => {
 
                     {/* ORDER */}
                     <Route path="/production/order" element={<Order/>}/>
+                    <Route path="/production/order/add" element={<AddOrder />}/>
+                    <Route path="/production/order/edit/:id"element={<AddOrder />}/>
+
 
                 </Route>
             </Route>
