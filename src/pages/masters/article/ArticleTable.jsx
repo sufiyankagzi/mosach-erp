@@ -4,7 +4,7 @@ import Swal from "sweetalert2";
 
 const ArticleTable = ({ article,  onDelete }) => {
   const navigate = useNavigate();
-
+  const IMAGE_BASE_URL = "https://mosach-erp-server.onrender.com"; const getImageUrl = (imageurl) => { if (!imageurl) return null; return imageurl.startsWith("http") ? imageurl : `${IMAGE_BASE_URL}${imageurl}`; };
   return (
     <div className="bg-white rounded-xl shadow overflow-hidden">
 
@@ -16,6 +16,7 @@ const ArticleTable = ({ article,  onDelete }) => {
 
             <tr>
               <th className="p-3 text-center">#</th>
+              <th className="p-3 text-left">Image</th>
               <th className="p-3 text-left">Article No.</th>
               <th className="p-3 text-left">Article Name</th>
               <th className="p-3 text-left">Category</th>
@@ -56,7 +57,7 @@ const ArticleTable = ({ article,  onDelete }) => {
                   {index+1}
                 </td>
 
-
+                {/* PRIMARY IMAGE */} <td className="p-2"> <div className="flex justify-center"> {item.imageurl ? ( <img src={getImageUrl(item.imageurl)} alt={item.articlename} className="w-14 h-14 object-cover rounded-lg border" onError={(e) => { e.currentTarget.style.display = "none"; }} /> ) : ( <div className="w-14 h-14 rounded-lg border bg-slate-100 flex items-center justify-center text-xs text-slate-400"> No Image </div> )} </div> </td>
                 <td className="p-3 font-medium whitespace-nowrap">
                   {item.articleno}
                 </td>
