@@ -84,13 +84,13 @@ const menuData = [
   },
 
   {
-    name: "Vouchers",
+    name: "Production",
     icon: MdFactory,
     submenu: [
       {
         name:"Order",
         icon: MdFactory,
-        path:"/voucher/order"
+        path:"/production/order"
       }
     ],
   },

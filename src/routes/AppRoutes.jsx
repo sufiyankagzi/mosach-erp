@@ -33,6 +33,7 @@ import Size from "../pages/masters/size/Size";
 import AddSize from "../pages/masters/size/AddSize";
 import Article from "../pages/masters/article/article";
 import AddArticle from "../pages/masters/article/AddArticle";
+import Order from "../pages/production/order/Order";
 
 
 
@@ -103,6 +104,9 @@ const AppRoutes = () => {
                     <Route path="/masters/article" element={<Article/>}/>
                     <Route path="/masters/article/add" element={<AddArticle />}/>
                     <Route path="/masters/article/edit/:id"element={<AddArticle />}/>
+
+                    {/* ORDER */}
+                    <Route path="/production/order" element={<Order/>}/>
 
                 </Route>
             </Route>
