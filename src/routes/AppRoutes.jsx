@@ -35,6 +35,7 @@ import Article from "../pages/masters/article/article";
 import AddArticle from "../pages/masters/article/AddArticle";
 import Order from "../pages/production/order/Order";
 import AddOrder from "../pages/production/order/AddOrder";
+import OrderReport from "../pages/reports/OrderReport";
 
 
 
@@ -111,6 +112,8 @@ const AppRoutes = () => {
                     <Route path="/production/order/add" element={<AddOrder />}/>
                     <Route path="/production/order/edit/:id"element={<AddOrder />}/>
 
+                    <Route path="/reports/order/date-wise" element={<OrderReport />}/>
+                    
 
                 </Route>
             </Route>

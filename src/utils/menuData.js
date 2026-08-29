@@ -91,15 +91,51 @@ const menuData = [
         name:"Order",
         icon: MdFactory,
         path:"/production/order"
+      },
+      {
+        name:"Jobcard",
+        icon: MdFactory,
+        path:"/production/jobcard"
       }
     ],
   },
 
   {
-    name: "Reports",
-    icon: MdAssessment,
-    submenu: [],
-  },
+  name: "Reports",
+  icon: MdAssessment,
+  submenu: [
+    {
+      name: "Order Report",
+      icon: MdFactory,
+      submenu: [
+        {
+          name: "Date Wise",
+          path: "/reports/order/date-wise",
+        },
+        {
+          name: "Date - Sales Person Wise",
+          path: "/reports/order/salesperson-wise",
+        },
+        {
+          name: "Date - Article No. Wise",
+          path: "/reports/order/article-wise",
+        },
+        {
+          name: "Date - Color Wise",
+          path: "/reports/order/color-wise",
+        },
+        {
+          name: "Date - Size Group Wise",
+          path: "/reports/order/size-group-wise",
+        },
+        {
+          name: "Date - Size Wise",
+          path: "/reports/order/size-wise",
+        },
+      ],
+    },
+  ],
+},
 
   {
     name: "Settings",
