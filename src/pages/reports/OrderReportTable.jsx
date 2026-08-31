@@ -10,7 +10,7 @@ const OrderReportTable = ({ orders }) => {
         <table className="min-w-[1200px] w-full">
 
           {/* TABLE HEADER */}
-          <thead className="bg-[#0A4B57] text-white">
+          <thead className="bg-[#0a4b57] text-white">
 
             <tr>
 
@@ -142,7 +142,7 @@ const OrderReportTable = ({ orders }) => {
 
                   {/* QTY */}
                   <td className="p-3 text-center font-medium">
-                    {item.qty || 0}
+                    {Math.round(item.qty || 0)}
                   </td>
 
                 </tr>
@@ -165,7 +165,7 @@ const OrderReportTable = ({ orders }) => {
                   colSpan={9}
                   className="p-3 text-right font-semibold"
                 >
-                  Total Qty
+                  Total Qty :
                 </td>
 
                 <td className="p-3 text-center font-semibold">
