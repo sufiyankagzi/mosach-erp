@@ -38,6 +38,8 @@ import AddArticle from "../pages/masters/article/AddArticle";
 import Order from "../pages/production/order/Order";
 import AddOrder from "../pages/production/order/AddOrder";
 import OrderReport from "../pages/reports/OrderReport";
+import ArticleBOM from "../pages/masters/articlebom/ArticleBOM";
+import AddArticleBOM from "../pages/masters/articlebom/AddArticleBOM";
 
 
 
@@ -113,6 +115,13 @@ const AppRoutes = () => {
                     <Route path="/masters/material" element={<Material/>}/>
                     <Route path="/masters/material/add" element={<AddMaterial />}/>
                     <Route path="/masters/material/edit/:id"element={<AddMaterial />}/>
+                    
+                    
+                     {/* ARTICLE BOM */}
+                    <Route path="/masters/articlebom" element={<ArticleBOM/>}/>
+                    <Route path="/masters/articlebom/add" element={<AddArticleBOM />}/>
+                    <Route path="/masters/articlebom/edit/:id"element={<AddArticleBOM />}/>
+
 
                     {/* ORDER */}
                     <Route path="/production/order" element={<Order/>}/>
