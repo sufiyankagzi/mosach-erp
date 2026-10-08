@@ -27,6 +27,8 @@ import Category from "../pages/masters/category/Category";
 import AddCategory from "../pages/masters/category/AddCategory";
 import Color from "../pages/masters/color/Color";
 import AddColor from "../pages/masters/color/AddColor";
+import Material from "../pages/masters/material/Material";
+import AddMaterial from "../pages/masters/material/AddMaterial";
 import SizeGroup from "../pages/masters/sizegroup/SizeGroup";
 import AddSizeGroup from "../pages/masters/sizegroup/AddSizeGroup";
 import Size from "../pages/masters/size/Size";
@@ -106,6 +108,11 @@ const AppRoutes = () => {
                     <Route path="/masters/article" element={<Article/>}/>
                     <Route path="/masters/article/add" element={<AddArticle />}/>
                     <Route path="/masters/article/edit/:id"element={<AddArticle />}/>
+
+                     {/* MATERIAL */}
+                    <Route path="/masters/material" element={<Material/>}/>
+                    <Route path="/masters/material/add" element={<AddMaterial />}/>
+                    <Route path="/masters/material/edit/:id"element={<AddMaterial />}/>
 
                     {/* ORDER */}
                     <Route path="/production/order" element={<Order/>}/>

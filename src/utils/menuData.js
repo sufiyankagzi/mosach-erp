@@ -80,6 +80,16 @@ const menuData = [
         icon: FaBoxes,
         path: "/masters/article",
       },
+      {
+        name: "Material",
+        icon: FaBoxes,
+        path: "/masters/material",
+      },
+      {
+        name: "Article BOM",
+        icon: FaBoxes,
+        path: "/masters/articlebom",
+      },
     ],
   },
 
