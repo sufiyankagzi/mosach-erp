@@ -5,7 +5,7 @@ import MainLayout from "../layout/MainLayout";
 import ProtectedRoute from "../components/ProtectedRoute";
 
 import Login from "../pages/auth/Login";
-
+import ProductionUpload from "../pages/production/ProductionUpload";
 import Dashboard from "../pages/dashboard/Dashboard";
 import Masters from "../pages/masters/Masters";
 import Purchase from "../pages/purchase/Purchase";
@@ -129,8 +129,10 @@ const AppRoutes = () => {
                     <Route path="/production/order/edit/:id"element={<AddOrder />}/>
 
                     <Route path="/reports/order/date-wise" element={<OrderReport />}/>
-                    
 
+                    {/* PRODUCTION UPLOAD */}
+                    <Route path="/production/productionupload"element={<ProductionUpload />}/>
+                    
                 </Route>
             </Route>
         </Routes>

@@ -109,6 +109,18 @@ const menuData = [
       }
     ],
   },
+  {
+    name: "Uploads",
+    icon: MdFactory,
+    submenu: [
+      {
+        name:"Production",
+        icon: MdFactory,
+        path:"/production/productionupload"
+      },
+      
+    ],
+  },
 
   {
   name: "Reports",
