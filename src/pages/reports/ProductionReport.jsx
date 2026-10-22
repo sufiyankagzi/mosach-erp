@@ -21,28 +21,28 @@ const columns = [
   { key: "jobcard", label: "Job Card No." },
   { key: "sku", label: "SKU" },
   { key: "reportdate", label: "Report Date" },
-  { key: "article", label: "Article" },
-  { key: "colour", label: "Colour" },
-  { key: "size", label: "Size" },
+//   { key: "article", label: "Article" },
+//   { key: "colour", label: "Colour" },
+//   { key: "size", label: "Size" },
   { key: "pair", label: "Pair" },
-  { key: "cuttingreceiveddate", label: "Cutting Received Date" },
+  { key: "cuttingreceiveddate", label: "Cutting Rec. Date" },
   { key: "cuttingcontractor", label: "Cutting Contractor" },
   { key: "uppercontractor", label: "Upper Contractor" },
   { key: "upperissuedate", label: "Upper Issue Date" },
-  { key: "upperreceiveddate", label: "Upper Received Date" },
-  { key: "upperreceivedpair", label: "Upper Received Pair" },
+  { key: "upperreceiveddate", label: "Upper Rec. Date" },
+  { key: "upperreceivedpair", label: "Upper Rec. Pair" },
   { key: "upperinsolecontractor", label: "Upper/Insole Contractor" },
   { key: "upperinsoleissueddate", label: "Upper/Insole Issued Date" },
   { key: "upperstorereceiveddate", label: "Upper Store Received Date" },
   { key: "upperstorepairqty", label: "Upper Store Pair Qty" },
   { key: "upperstorestatus", label: "Upper Store Status" },
-  { key: "machineno", label: "Machine No." },
-  { key: "machineissuedate", label: "Machine Issue Date" },
-  { key: "machinepairqty", label: "Machine Pair Qty" },
-  { key: "firstpair", label: "1st Pair" },
-  { key: "secondpair", label: "2nd Pair" },
-  { key: "rejection", label: "Rejection" },
-  { key: "totalpair", label: "Total Pair" },
+//   { key: "machineno", label: "Machine No." },
+//   { key: "machineissuedate", label: "Machine Issue Date" },
+//   { key: "machinepairqty", label: "Machine Pair Qty" },
+//   { key: "firstpair", label: "1st Pair" },
+//   { key: "secondpair", label: "2nd Pair" },
+//   { key: "rejection", label: "Rejection" },
+//   { key: "totalpair", label: "Total Pair" },
 ];
 
 const getRowsFromResponse = (responseData) => {
@@ -83,9 +83,9 @@ export default function ProductionReport() {
 
   const [search, setSearch] = useState("");
   const [filterJobcard, setFilterJobcard] = useState("");
-  const [filterArticle, setFilterArticle] = useState("");
-  const [filterColour, setFilterColour] = useState("");
-  const [filterSize, setFilterSize] = useState("");
+//   const [filterArticle, setFilterArticle] = useState("");
+//   const [filterColour, setFilterColour] = useState("");
+//   const [filterSize, setFilterSize] = useState("");
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
 
@@ -142,9 +142,9 @@ export default function ProductionReport() {
   const resetFilters = () => {
     setSearch("");
     setFilterJobcard("");
-    setFilterArticle("");
-    setFilterColour("");
-    setFilterSize("");
+    // setFilterArticle("");
+    // setFilterColour("");
+    // setFilterSize("");
     setFromDate("");
     setToDate("");
     setSortField("jobcard");
@@ -180,9 +180,9 @@ export default function ProductionReport() {
       );
     }
 
-    if (filterArticle) result = result.filter((row) => String(row.article ?? "") === filterArticle);
-    if (filterColour) result = result.filter((row) => String(row.colour ?? "") === filterColour);
-    if (filterSize) result = result.filter((row) => String(row.size ?? "") === filterSize);
+    // if (filterArticle) result = result.filter((row) => String(row.article ?? "") === filterArticle);
+    // if (filterColour) result = result.filter((row) => String(row.colour ?? "") === filterColour);
+    // if (filterSize) result = result.filter((row) => String(row.size ?? "") === filterSize);
 
     if (fromDate) {
       result = result.filter((row) => {
@@ -221,9 +221,9 @@ export default function ProductionReport() {
     rows,
     search,
     filterJobcard,
-    filterArticle,
-    filterColour,
-    filterSize,
+    // filterArticle,
+    // filterColour,
+    // filterSize,
     fromDate,
     toDate,
     sortField,
@@ -356,27 +356,27 @@ export default function ProductionReport() {
                   className={inputClass}
                 />
               </div>
-              <div>
+              {/* <div>
                 <label className="mb-1 block text-xs font-semibold text-slate-600">Article</label>
                 <select value={filterArticle} onChange={(event) => { setFilterArticle(event.target.value); setCurrentPage(1); }} className={inputClass}>
                   <option value="">All Articles</option>
                   {articleOptions.map((item) => <option key={item} value={item}>{item}</option>)}
                 </select>
-              </div>
-              <div>
+              </div> */}
+              {/* <div>
                 <label className="mb-1 block text-xs font-semibold text-slate-600">Colour</label>
                 <select value={filterColour} onChange={(event) => { setFilterColour(event.target.value); setCurrentPage(1); }} className={inputClass}>
                   <option value="">All Colours</option>
                   {colourOptions.map((item) => <option key={item} value={item}>{item}</option>)}
                 </select>
-              </div>
-              <div>
+              </div> */}
+              {/* <div>
                 <label className="mb-1 block text-xs font-semibold text-slate-600">Size</label>
                 <select value={filterSize} onChange={(event) => { setFilterSize(event.target.value); setCurrentPage(1); }} className={inputClass}>
                   <option value="">All Sizes</option>
                   {sizeOptions.map((item) => <option key={item} value={item}>{item}</option>)}
                 </select>
-              </div>
+              </div> */}
               <div>
                 <label className="mb-1 block text-xs font-semibold text-slate-600">From Date</label>
                 <input type="date" value={fromDate} max={toDate || undefined} onChange={(event) => { setFromDate(event.target.value); setCurrentPage(1); }} className={inputClass} />
