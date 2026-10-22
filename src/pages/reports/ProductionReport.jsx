@@ -15,6 +15,8 @@ import {
 const API_URL = "https://mosach-erp-server.onrender.com/api/production-report";
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 
+const formatDate = (value) => { if (!value) return "-"; const date = getDateOnly(value); if (!date) return "-"; const [year, month, day] = date.split("-"); return `${day}-${month}-${year}`; };
+
 const columns = [
   { key: "jobcard", label: "Job Card No." },
   { key: "sku", label: "SKU" },
@@ -422,7 +424,14 @@ export default function ProductionReport() {
                         const value = row[column.key];
                         return (
                           <td key={column.key} className={`whitespace-nowrap px-4 py-3 ${column.key === "jobcard" ? "font-semibold text-orange-700" : "text-slate-700"}`}>
-                            {value == null || value === "" ? "-" : String(value).slice(0, 100)}
+                            
+{value == null || value === ""
+  ? "-"
+  : column.key.toLowerCase().includes("date")
+    ? formatDate(value)
+    : String(value).slice(0, 100)}
+
+
                           </td>
                         );
                       })}
