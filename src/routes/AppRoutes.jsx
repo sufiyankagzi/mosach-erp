@@ -40,6 +40,7 @@ import AddOrder from "../pages/production/order/AddOrder";
 import OrderReport from "../pages/reports/OrderReport";
 import ArticleBOM from "../pages/masters/articlebom/ArticleBOM";
 import AddArticleBOM from "../pages/masters/articlebom/AddArticleBOM";
+import ProductionReport from "../pages/reports/ProductionReport";
 
 
 
@@ -132,6 +133,8 @@ const AppRoutes = () => {
 
                     {/* PRODUCTION UPLOAD */}
                     <Route path="/production/productionupload"element={<ProductionUpload />}/>
+                    {/* PRODUCTION REPORT */}
+                    <Route path="/reports/production/productionreport" element={<ProductionReport />}/>
                     
                 </Route>
             </Route>

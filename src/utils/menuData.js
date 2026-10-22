@@ -6,7 +6,7 @@ import {
   MdInventory,
   MdFactory,
   MdAssessment,
-  MdSettings,MdLogout ,
+  MdSettings, MdLogout,
 } from "react-icons/md";
 
 
@@ -33,141 +33,116 @@ const menuData = [
     icon: MdCategory,
 
     submenu: [
-      {
-        name: "Company",
-        icon: FaBuilding,
-        path: "/masters/company",
-      },
+      // {
+      //   name: "Company",
+      //   icon: FaBuilding,
+      //   path: "/masters/company",
+      // },
        {
         name: "Users",
         icon: FaUserTie,
         path: "/masters/users",
       },
-      {
-        name: "Sales Person",
-        icon: FaCodeBranch,
-        path: "/masters/salesperson",
-      },
-      {
-        name: "Gender",
-        icon: FaCodeBranch,
-        path: "/masters/gender",
-      },
-       {
-        name: "Category",
-        icon: FaBoxes,
-        path: "/masters/category",
-      },
-      
-     
-      {
-        name: "Color",
-        icon: FaPalette,
-        path: "/masters/color",
-      },
-      {
-        name: "Size Group",
-        icon: FaRuler,
-        path: "/masters/sizegroup",
-      },
-      {
-        name: "Size",
-        icon: FaRuler,
-        path: "/masters/size",
-      },
-      {
-        name: "Article",
-        icon: FaBoxes,
-        path: "/masters/article",
-      },
-      {
-        name: "Material",
-        icon: FaBoxes,
-        path: "/masters/material",
-      },
-      {
-        name: "Article BOM",
-        icon: FaBoxes,
-        path: "/masters/articlebom",
-      },
+      // {
+      //   name: "Sales Person",
+      //   icon: FaCodeBranch,
+      //   path: "/masters/salesperson",
+      // },
+      // {
+      //   name: "Gender",
+      //   icon: FaCodeBranch,
+      //   path: "/masters/gender",
+      // },
+      //  {
+      //   name: "Category",
+      //   icon: FaBoxes,
+      //   path: "/masters/category",
+      // },
+
+
+      // {
+      //   name: "Color",
+      //   icon: FaPalette,
+      //   path: "/masters/color",
+      // },
+      // {
+      //   name: "Size Group",
+      //   icon: FaRuler,
+      //   path: "/masters/sizegroup",
+      // },
+      // {
+      //   name: "Size",
+      //   icon: FaRuler,
+      //   path: "/masters/size",
+      // },
+      // {
+      //   name: "Article",
+      //   icon: FaBoxes,
+      //   path: "/masters/article",
+      // },
+      // {
+      //   name: "Material",
+      //   icon: FaBoxes,
+      //   path: "/masters/material",
+      // },
+      // {
+      //   name: "Article BOM",
+      //   icon: FaBoxes,
+      //   path: "/masters/articlebom",
+      // },
     ],
   },
 
-  {
-    name: "Production",
-    icon: MdFactory,
-    submenu: [
-      {
-        name:"Order",
-        icon: MdFactory,
-        path:"/production/order"
-      },
-      {
-        name:"Jobcard",
-        icon: MdFactory,
-        path:"/production/jobcard"
-      }
-    ],
-  },
+  // {
+  //   name: "Production",
+  //   icon: MdFactory,
+  //   submenu: [
+  //     {
+  //       name:"Order",
+  //       icon: MdFactory,
+  //       path:"/production/order"
+  //     },
+  //     {
+  //       name:"Jobcard",
+  //       icon: MdFactory,
+  //       path:"/production/jobcard"
+  //     }
+  //   ],
+  // },
   {
     name: "Uploads",
     icon: MdFactory,
     submenu: [
       {
-        name:"Production",
+        name: "Production",
         icon: MdFactory,
-        path:"/production/productionupload"
+        path: "/production/productionupload"
       },
-      
+
     ],
   },
 
-  {
+ {
   name: "Reports",
   icon: MdAssessment,
   submenu: [
     {
-      name: "Order Report",
+      name: "Production Report",
       icon: MdFactory,
-      submenu: [
-        {
-          name: "Date Wise",
-          path: "/reports/order/date-wise",
-        },
-        {
-          name: "Date - Sales Person Wise",
-          path: "/reports/order/salesperson-wise",
-        },
-        {
-          name: "Date - Article No. Wise",
-          path: "/reports/order/article-wise",
-        },
-        {
-          name: "Date - Color Wise",
-          path: "/reports/order/color-wise",
-        },
-        {
-          name: "Date - Size Group Wise",
-          path: "/reports/order/size-group-wise",
-        },
-        {
-          name: "Date - Size Wise",
-          path: "/reports/order/size-wise",
-        },
-      ],
+      path: "/reports/production/productionreport",
     },
   ],
 },
 
-  {
-    name: "Settings",
-    icon: MdSettings,
-    submenu: [],
-  },
+  // {
+  //   name: "Settings",
+  //   icon: MdSettings,
+  //   submenu: [],
+  // },
 
   {
     name: "Logout",
-    icon: MdLogout ,
+    icon: MdLogout,
     action: "logout",
   },
 ];
