@@ -1,65 +1,58 @@
+
 import {
   MdDashboard,
   MdCategory,
-  MdShoppingCart,
-  MdPointOfSale,
-  MdInventory,
   MdFactory,
   MdAssessment,
-  MdSettings, MdLogout,
+  MdLogout,
+  MdCloudUpload,
+  MdPeople,
+  MdInventory,
 } from "react-icons/md";
 
-
 import {
-  FaBuilding,
-  FaCodeBranch,
   FaUserTie,
-  FaUsers,
-  FaTags,
+  FaBoxes,
   FaPalette,
   FaRuler,
-  FaBoxes,
+  FaBuilding,
+  FaCodeBranch,
+  FaTags,
 } from "react-icons/fa";
 
 const menuData = [
+  // Dashboard
   {
     name: "Dashboard",
     icon: MdDashboard,
     path: "/dashboard",
   },
 
+  // Masters
   {
     name: "Masters",
     icon: MdCategory,
-
     submenu: [
+      {
+        name: "Users",
+        icon: FaUserTie,
+        path: "/masters/users",
+      },
       // {
       //   name: "Company",
       //   icon: FaBuilding,
       //   path: "/masters/company",
       // },
-       {
-        name: "Users",
-        icon: FaUserTie,
-        path: "/masters/users",
-      },
       // {
       //   name: "Sales Person",
       //   icon: FaCodeBranch,
       //   path: "/masters/salesperson",
       // },
       // {
-      //   name: "Gender",
-      //   icon: FaCodeBranch,
-      //   path: "/masters/gender",
-      // },
-      //  {
       //   name: "Category",
       //   icon: FaBoxes,
       //   path: "/masters/category",
       // },
-
-
       // {
       //   name: "Color",
       //   icon: FaPalette,
@@ -77,69 +70,44 @@ const menuData = [
       // },
       // {
       //   name: "Article",
-      //   icon: FaBoxes,
+      //   icon: MdInventory,
       //   path: "/masters/article",
       // },
       // {
       //   name: "Material",
-      //   icon: FaBoxes,
+      //   icon: FaTags,
       //   path: "/masters/material",
       // },
-      // {
-      //   name: "Article BOM",
-      //   icon: FaBoxes,
-      //   path: "/masters/articlebom",
-      // },
     ],
   },
 
-  // {
-  //   name: "Production",
-  //   icon: MdFactory,
-  //   submenu: [
-  //     {
-  //       name:"Order",
-  //       icon: MdFactory,
-  //       path:"/production/order"
-  //     },
-  //     {
-  //       name:"Jobcard",
-  //       icon: MdFactory,
-  //       path:"/production/jobcard"
-  //     }
-  //   ],
-  // },
+  // Uploads
   {
     name: "Uploads",
-    icon: MdFactory,
+    icon: MdCloudUpload,
     submenu: [
       {
-        name: "Production",
+        name: "Production Upload",
         icon: MdFactory,
-        path: "/production/productionupload"
+        path: "/production/productionupload",
       },
-
     ],
   },
 
- {
-  name: "Reports",
-  icon: MdAssessment,
-  submenu: [
-    {
-      name: "Production Report",
-      icon: MdFactory,
-      path: "/reports/production/productionreport",
-    },
-  ],
-},
+  // Reports
+  {
+    name: "Reports",
+    icon: MdAssessment,
+    submenu: [
+      {
+        name: "Production Report",
+        icon: MdFactory,
+        path: "/reports/production/productionreport",
+      },
+    ],
+  },
 
-  // {
-  //   name: "Settings",
-  //   icon: MdSettings,
-  //   submenu: [],
-  // },
-
+  // Logout
   {
     name: "Logout",
     icon: MdLogout,
@@ -148,3 +116,4 @@ const menuData = [
 ];
 
 export default menuData;
+

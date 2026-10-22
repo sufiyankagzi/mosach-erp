@@ -41,6 +41,7 @@ import OrderReport from "../pages/reports/OrderReport";
 import ArticleBOM from "../pages/masters/articlebom/ArticleBOM";
 import AddArticleBOM from "../pages/masters/articlebom/AddArticleBOM";
 import ProductionReport from "../pages/reports/ProductionReport";
+import ProductionDetailReport from "../pages/dashboard/ProductionDetailReport";
 
 
 
@@ -136,6 +137,43 @@ const AppRoutes = () => {
                     {/* PRODUCTION REPORT */}
                     <Route path="/reports/production/productionreport" element={<ProductionReport />}/>
                     
+                    <Route path="/upper-report" element={<ProductionDetailReport stage="upper" />} />
+                    <Route path="/article-production-report" element={<ProductionDetailReport stage="article" />} />
+
+                    {/* =========================
+    ADVANCED PRODUCTION REPORTS
+========================= */}
+
+<Route
+    path="/reports/production/dashboard"
+    element={<Dashboard />}
+/>
+
+<Route
+    path="/job-card-report"
+    element={<ProductionDetailReport stage="jobcard" />}
+/>
+
+<Route
+    path="/cutting-report"
+    element={<ProductionDetailReport stage="cutting" />}
+/>
+
+<Route
+    path="/upper-report"
+    element={<ProductionDetailReport stage="upper" />}
+/>
+
+<Route
+    path="/upper-store-report"
+    element={<ProductionDetailReport stage="store" />}
+/>
+
+<Route
+    path="/article-production-report"
+    element={<ProductionDetailReport stage="article" />}
+/>
+
                 </Route>
             </Route>
         </Routes>
