@@ -120,10 +120,12 @@ const SummaryCard = ({
           </p>
 
           <h3
-            className={`mt-3 text-2xl font-medium tracking-tight sm:text-3xl ${numberColors[accent] || numberColors.orange
-              }`}
+            className={`mt-3 font-medium tracking-tight ${typeof value === "number"
+              ? "text-2xl sm:text-3xl"
+              : "wrap-break-words text-base sm:text-lg"
+              } ${numberColors[accent] || numberColors.orange}`}
           >
-            {formatNumber(value)}
+            {typeof value === "number" ? formatNumber(value) : value}
           </h3>
 
           {note && (
@@ -222,8 +224,8 @@ const StatusBadge = ({ value, type }) => {
   return (
     <span
       className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-md border px-2.5 py-1 text-xs font-normal ${completed
-          ? "border-emerald-100 bg-emerald-50 text-emerald-700"
-          : "border-orange-100 bg-orange-50 text-orange-700"
+        ? "border-emerald-100 bg-emerald-50 text-emerald-700"
+        : "border-orange-100 bg-orange-50 text-orange-700"
         }`}
     >
       {completed ? (
@@ -242,6 +244,13 @@ const StatusBadge = ({ value, type }) => {
 // ==========================================
 
 const Dashboard = () => {
+  const isCuttingPending = (row) => {
+    const cuttingDate = getValue(row, "cuttingreceiveddate");
+    const contractor = getValue(row, "cuttingcontractor");
+
+    return !cuttingDate && !contractor;
+  };
+
   const navigate = useNavigate();
 
   const [rows, setRows] = useState([]);
@@ -354,45 +363,175 @@ const Dashboard = () => {
   // PRODUCTION STATISTICS
   // ========================================
 
-  const stats = useMemo(() => {
-    const sum = (key) =>
-      filteredRows.reduce(
-        (total, row) =>
-          total + numberValue(getValue(row, key)),
-        0
-      );
 
-    const countStatus = (stage, status) =>
-      filteredRows.filter(
-        (row) => getStageStatus(row, stage) === status
-      ).length;
 
-    const jobCards = new Set(
-      filteredRows
+
+
+
+
+
+const stats = useMemo(() => {
+  // ========================================
+  // COMMON CALCULATIONS
+  // ========================================
+
+  const sum = (key) =>
+    filteredRows.reduce(
+      (total, row) =>
+        total + numberValue(getValue(row, key)),
+      0
+    );
+
+  const countStatus = (stage, status) =>
+    filteredRows.filter(
+      (row) => getStageStatus(row, stage) === status
+    ).length;
+
+  // Unique Job Cards
+  const getUniqueJobCards = (rows) =>
+    new Set(
+      rows
         .map((row) =>
-          String(getValue(row, "jobcard") || "").trim()
+          String(getValue(row, "jobcard") ?? "").trim()
         )
         .filter(Boolean)
     );
 
-    return {
-      records: filteredRows.length,
-      jobCards: jobCards.size,
-      pairs: sum("pair"),
-      cutting: sum("cuttingpairqty"),
-      upper: sum("upperpairqty"),
-      store: sum("upperstorepairqty"),
+  const jobCards = getUniqueJobCards(filteredRows);
 
-      cuttingCompleted: countStatus("cutting", "Completed"),
-      cuttingPending: countStatus("cutting", "Pending"),
+  // ========================================
+  // PENDING CUTTING
+  // Cutting Received Date AND Contractor blank
+  // ========================================
 
-      upperCompleted: countStatus("upper", "Completed"),
-      upperPending: countStatus("upper", "Pending"),
+  const pendingCuttingRows = filteredRows.filter((row) => {
+    const cuttingDate = getValue(row, "cuttingreceiveddate");
+    const contractor = getValue(row, "cuttingcontractor");
 
-      storeCompleted: countStatus("store", "Completed"),
-      storePending: countStatus("store", "Pending"),
-    };
-  }, [filteredRows]);
+    const isDateBlank =
+      cuttingDate == null ||
+      String(cuttingDate).trim() === "";
+
+    const isContractorBlank =
+      contractor == null ||
+      String(contractor).trim() === "";
+
+    return isDateBlank && isContractorBlank;
+  });
+
+  const pendingCuttingJobCards =
+    getUniqueJobCards(pendingCuttingRows);
+
+  const pendingCuttingPairs = pendingCuttingRows.reduce(
+    (total, row) =>
+      total + numberValue(getValue(row, "pair")),
+    0
+  );
+
+  // ========================================
+  // PENDING UPPER
+  // Upper/Insole Contractor blank
+  // ========================================
+
+  const pendingUpperRows = filteredRows.filter((row) => {
+    const contractor = getValue(
+      row,
+      "upperinsolecontractor"
+    );
+
+    return (
+      contractor == null ||
+      String(contractor).trim() === ""
+    );
+  });
+
+  const pendingUpperJobCards =
+    getUniqueJobCards(pendingUpperRows);
+
+  const pendingUpperPairs = pendingUpperRows.reduce(
+    (total, row) =>
+      total + numberValue(getValue(row, "upperreceivedpair")),
+    0
+  );
+
+  // ========================================
+  // UPPER STORE
+  // Upper Received vs Upper Store Received
+  // ========================================
+
+  // Total Upper Received Pairs
+  const upperReceivedTotal = sum("upperreceivedpair");
+
+  // Total Upper Store Received Pairs
+  const receivedStorePairs = sum("upperstorepairqty");
+
+  // Pending Store Job Cards
+  const pendingStoreRows = filteredRows.filter((row) => {
+    const upperReceived = numberValue(
+      getValue(row, "upperreceivedpair")
+    );
+
+    const upperStore = numberValue(
+      getValue(row, "upperstorepairqty")
+    );
+
+    return upperReceived > upperStore;
+  });
+
+  const pendingStoreJobCards =
+    getUniqueJobCards(pendingStoreRows);
+
+  // Pending Pairs = Total Upper Received - Total Store Received
+  // Negative total is prevented.
+  const pendingStorePairs = Math.max(
+    0,
+    upperReceivedTotal - receivedStorePairs
+  );
+
+  // ========================================
+  // RETURN STATISTICS
+  // ========================================
+
+  return {
+    records: filteredRows.length,
+    jobCards: jobCards.size,
+    pairs: sum("pair"),
+
+    // Production Quantities
+    cutting: sum("cuttingpairqty"),
+    upper: sum("upperpairqty"),
+    store: receivedStorePairs,
+
+    // Pending Cutting
+    pendingCuttingJobCards: pendingCuttingJobCards.size,
+    pendingCuttingPairs,
+
+    // Pending Upper
+    pendingUpperJobCards: pendingUpperJobCards.size,
+    pendingUpperPairs,
+
+    // Cutting Status
+    cuttingCompleted: countStatus("cutting", "Completed"),
+    cuttingPending: countStatus("cutting", "Pending"),
+
+    // Upper Status
+    upperCompleted: upperReceivedTotal,
+    upperPending: countStatus("upper", "Completed"),
+
+    // Upper Store Status
+    storeCompleted: receivedStorePairs,
+    storePending: countStatus("store", "Completed"),
+
+    // Upper Store Received vs Pending
+    pendingStoreJobCards: pendingStoreJobCards.size,
+    receivedStorePairs,
+    pendingStorePairs,
+  };
+}, [filteredRows]);
+
+
+
+
 
   // ========================================
   // JOB CARD SUMMARY
@@ -512,7 +651,7 @@ const Dashboard = () => {
 
           <div className="relative z-10">
 
-            
+
             {/* Breadcrumb */}
             <div className="mb-3 flex items-center gap-2 text-[11px] font-medium sm:mb-3.5 sm:text-xs">
               <MdDashboard size={15} className="shrink-0 text-orange-400" />
@@ -702,17 +841,17 @@ const Dashboard = () => {
                 />
 
                 <SummaryCard
-                  title="Upper Store Completed"
-                  value={stats.storeCompleted}
-                  note="Completed records"
+                  title="Upper Received Completed"
+                  value={stats.upperCompleted}
+                  note="Completed upper received pair"
                   icon={MdCheckCircle}
                   accent="green"
                 />
 
                 <SummaryCard
-                  title="Upper Store Pending"
-                  value={stats.storePending}
-                  note="Pending records"
+                  title="Upper Store Completed"
+                  value={stats.storeCompleted}
+                  note="Completed upper store pair"
                   icon={MdPendingActions}
                   accent="red"
                 />
@@ -728,26 +867,107 @@ const Dashboard = () => {
               />
 
               <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                <SummaryCard
-                  title="Cutting Pair Qty"
-                  value={stats.cutting}
-                  note={`${stats.cuttingCompleted} completed · ${stats.cuttingPending} pending records`}
-                  icon={MdContentCut}
-                  accent="orange"
-                />
+
 
                 <SummaryCard
-                  title="Upper Pair Qty"
-                  value={stats.upper}
-                  note={`${stats.upperCompleted} completed · ${stats.upperPending} pending records`}
+                  title={
+                    <span className="text-xl font-medium text-slate-600 sm:text-xl">
+                      Pending Cutting Pair Qty
+                    </span>
+                  }
+                  value={
+                    <span className="flex flex-wrap items-center gap-x-1.5 gap-y-1 font-bold">
+                      <span className="font-medium text-[#FF7A1A] text-3xl">
+                        {formatNumber(stats.pendingCuttingJobCards)}
+                      </span>
+
+                      <span className="font-light text-slate-600">
+                        Job Cards /
+                      </span>
+
+                      <span className="font-medium text-[#FF7A1A] text-3xl">
+                        {formatNumber(stats.pendingCuttingPairs)}
+                      </span>
+
+                      <span className="font-light text-slate-600">
+                        Pairs
+                      </span>
+                    </span>
+                  }
+                  note="Job Cards without Cutting Received Date and Contractor"
+                  icon={MdContentCut}
+                  accent="orange"
+
+                />
+
+
+
+
+
+                <SummaryCard
+                  title={
+                    <span className="text-xl font-medium text-slate-600 sm:text-xl">
+                      Pending Upper Pair Qty
+                    </span>
+                  }
+                  value={
+                    <span className="flex flex-wrap items-center gap-x-1.5 gap-y-1 font-bold">
+                      <span className="text-3xl font-medium text-slate-600">
+                        {formatNumber(stats.pendingUpperJobCards)}
+                      </span>
+
+                      <span className="font-light text-slate-600">
+                        Job Cards /
+                      </span>
+
+                      <span className="text-3xl font-medium text-slate-600">
+                        {formatNumber(stats.pendingUpperPairs)}
+                      </span>
+
+                      <span className="font-light text-slate-600">
+                        Pairs
+                      </span>
+                    </span>
+                  }
+                  note="Job Cards without Upper Insole Contractor"
                   icon={MdLayers}
                   accent="teal"
                 />
-
+                {/* SUFIYAN KAGZI */}
                 <SummaryCard
-                  title="Upper Store Pair Qty"
-                  value={stats.store}
-                  note="Quantity received in Upper Store"
+                  title={
+                    <span className="text-xl font-medium text-slate-600 sm:text-xl">
+                      Pending Upper Store Pair Qty
+                    </span>
+                  }
+                  value={
+                    <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 font-bold">
+                      <span className="text-3xl font-medium text-slate-600">
+                        {formatNumber(stats.pendingStoreJobCards)}
+                      </span>
+
+                      <span className="font-light text-slate-600">
+                        Job Cards /
+                      </span>
+
+                      {/* <span className="text-3xl font-medium text-emerald-600">
+                        {formatNumber(stats.receivedStorePairs)}
+                      </span>
+
+                      <span className="font-light text-slate-600">
+                        Received /
+                      </span> */}
+
+                      <span className="text-3xl font-medium text-orange-500">
+                        {formatNumber(stats.pendingStorePairs)}
+                      </span>
+
+                      <span className="font-light text-slate-600">
+                        Pairs
+                      </span>
+                    </div>
+                  }
+                  note="Upper Received Pair compared with Upper Store received quantity"
                   icon={MdShoppingBag}
                   accent="green"
                 />
