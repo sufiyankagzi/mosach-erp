@@ -1,1088 +1,844 @@
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import axios from "axios";
 
 import {
-    MdCloudUpload,
-    MdDescription,
-    MdCheckCircle,
-    MdError,
-    MdSearch,
-    MdFilterList,
-    MdRefresh,
-    MdKeyboardArrowUp,
-    MdKeyboardArrowDown,
-    MdFirstPage,
-    MdLastPage
+MdCloudUpload,
+MdCheckCircle,
+MdError,
+MdRefresh,
+MdKeyboardArrowUp,
+MdKeyboardArrowDown,
+MdSearch,
 } from "react-icons/md";
 
-const API_URL =
-    "https://mosach-erp-server.onrender.com/api/production-report";
+// ======================================================
+// API CONFIGURATION
+// ======================================================
+
+const API_BASE_URL =
+"https://mosach-erp-server.onrender.com/api/production-report";
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
-
-const ProductionUpload = () => {
-    const [file, setFile] = useState(null);
-    const [loading, setLoading] = useState(false);
-    const [message, setMessage] = useState("");
-    const [result, setResult] = useState(null);
-    const [error, setError] = useState("");
-
-    // Grid states
-    const [search, setSearch] = useState("");
-    const [filterJobcard, setFilterJobcard] = useState("");
-    const [filterArticle, setFilterArticle] = useState("");
-    const [filterColour, setFilterColour] = useState("");
-    const [filterSize, setFilterSize] = useState("");
-    const [fromDate, setFromDate] = useState("");
-    const [toDate, setToDate] = useState("");
-
-    const [sortField, setSortField] = useState("jobcard");
-    const [sortDirection, setSortDirection] = useState("asc");
-
-    const [currentPage, setCurrentPage] = useState(1);
-    const [pageSize, setPageSize] = useState(10);
-
-    // ==================================================
-    // FILE SELECTION
-    // ==================================================
-
-    const handleFileChange = (event) => {
-        const selectedFile = event.target.files?.[0];
-
-        setFile(null);
-        setMessage("");
-        setResult(null);
-        setError("");
-
-        if (!selectedFile) return;
-
-        if (!/\.(xlsx|xls)$/i.test(selectedFile.name)) {
-            setError(
-                "Please select a valid Excel file (.xlsx or .xls)."
-            );
-
-            event.target.value = "";
-            return;
-        }
-
-        if (selectedFile.size > 10 * 1024 * 1024) {
-            setError("File size must not exceed 10 MB.");
-
-            event.target.value = "";
-            return;
-        }
-
-        setFile(selectedFile);
-    };
-
-    // ==================================================
-    // RESET GRID FILTERS
-    // ==================================================
-
-    const resetFilters = () => {
-        setSearch("");
-        setFilterJobcard("");
-        setFilterArticle("");
-        setFilterColour("");
-        setFilterSize("");
-        setFromDate("");
-        setToDate("");
-        setSortField("jobcard");
-        setSortDirection("asc");
-        setCurrentPage(1);
-    };
-
-    // ==================================================
-    // UPLOAD EXCEL
-    // ==================================================
-
-    const handleUpload = async (event) => {
-        event.preventDefault();
-
-        if (!file) {
-            setError("Please select an Excel file first.");
-            return;
-        }
-
-        setLoading(true);
-        setMessage("");
-        setError("");
-
-        try {
-            const formData = new FormData();
-
-            formData.append("file", file);
-
-            const response = await axios.post(
-                `${API_URL}/upload`,
-                formData
-            );
-
-            const uploadData = response.data.data;
-
-            setMessage(
-                response.data.message ||
-                "Excel uploaded successfully."
-            );
-
-            setResult(uploadData);
-
-            // Reset grid filters after a new upload
-            resetFilters();
-
-            setFile(null);
-
-            event.target.reset();
-        } catch (err) {
-            setError(
-                err.response?.data?.message ||
-                err.message ||
-                "Excel upload failed. Please try again."
-            );
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    // ==================================================
-    // GET UPLOADED ROWS
-    // ==================================================
-
-    const uploadedRows = useMemo(() => {
-        return Array.isArray(result?.uploadedRows)
-            ? result.uploadedRows
-            : [];
-    }, [result]);
-
-    // ==================================================
-    // GET FILTER DROPDOWN OPTIONS
-    // ==================================================
-
-    const articleOptions = useMemo(() => {
-        return [
-            ...new Set(
-                uploadedRows
-                    .map((row) => row.article)
-                    .filter((value) => value !== null &&
-                        value !== undefined &&
-                        String(value).trim() !== "")
-                    .map(String)
-            )
-        ].sort((a, b) => a.localeCompare(b));
-    }, [uploadedRows]);
-
-    const colourOptions = useMemo(() => {
-        return [
-            ...new Set(
-                uploadedRows
-                    .map((row) => row.colour)
-                    .filter((value) => value !== null &&
-                        value !== undefined &&
-                        String(value).trim() !== "")
-                    .map(String)
-            )
-        ].sort((a, b) => a.localeCompare(b));
-    }, [uploadedRows]);
-
-    const sizeOptions = useMemo(() => {
-        return [
-            ...new Set(
-                uploadedRows
-                    .map((row) => row.size)
-                    .filter((value) => value !== null &&
-                        value !== undefined &&
-                        String(value).trim() !== "")
-                    .map(String)
-            )
-        ].sort((a, b) => a.localeCompare(b));
-    }, [uploadedRows]);
-
-    // ==================================================
-    // FILTER GRID DATA
-    // ==================================================
-
-    const filteredRows = useMemo(() => {
-        let rows = [...uploadedRows];
-
-        const normalizedSearch = search.trim().toLowerCase();
-
-        if (normalizedSearch) {
-            rows = rows.filter((row) => {
-                const searchableValues = [
-                    row.jobcard,
-                    row.sku,
-                    row.article,
-                    row.colour,
-                    row.size,
-                    row.machineno,
-                    row.cuttingcontractor,
-                    row.uppercontractor,
-                    row.upperinsolecontractor,
-                    row.upperstorestatus
-                ];
-
-                return searchableValues.some((value) =>
-                    String(value ?? "")
-                        .toLowerCase()
-                        .includes(normalizedSearch)
-                );
-            });
-        }
-
-        if (filterJobcard.trim()) {
-            rows = rows.filter((row) =>
-                String(row.jobcard ?? "")
-                    .toLowerCase()
-                    .includes(filterJobcard.trim().toLowerCase())
-            );
-        }
-
-        if (filterArticle) {
-            rows = rows.filter(
-                (row) => String(row.article ?? "") === filterArticle
-            );
-        }
-
-        if (filterColour) {
-            rows = rows.filter(
-                (row) => String(row.colour ?? "") === filterColour
-            );
-        }
-
-        if (filterSize) {
-            rows = rows.filter(
-                (row) => String(row.size ?? "") === filterSize
-            );
-        }
-
-        if (fromDate) {
-            rows = rows.filter((row) => {
-                const date = String(row.reportdate ?? "").slice(0, 10);
-                return date && date >= fromDate;
-            });
-        }
-
-        if (toDate) {
-            rows = rows.filter((row) => {
-                const date = String(row.reportdate ?? "").slice(0, 10);
-                return date && date <= toDate;
-            });
-        }
-
-        // Sorting
-        rows.sort((a, b) => {
-            const valueA = a[sortField];
-            const valueB = b[sortField];
-
-            let comparison = 0;
-
-            if (
-                valueA === null ||
-                valueA === undefined ||
-                valueA === ""
-            ) {
-                comparison = -1;
-            } else if (
-                valueB === null ||
-                valueB === undefined ||
-                valueB === ""
-            ) {
-                comparison = 1;
-            } else if (
-                typeof valueA === "number" &&
-                typeof valueB === "number"
-            ) {
-                comparison = valueA - valueB;
-            } else {
-                comparison = String(valueA).localeCompare(
-                    String(valueB),
-                    undefined,
-                    {
-                        numeric: true,
-                        sensitivity: "base"
-                    }
-                );
-            }
-
-            return sortDirection === "asc"
-                ? comparison
-                : -comparison;
-        });
-
-        return rows;
-    }, [
-        uploadedRows,
-        search,
-        filterJobcard,
-        filterArticle,
-        filterColour,
-        filterSize,
-        fromDate,
-        toDate,
-        sortField,
-        sortDirection
-    ]);
-
-    // ==================================================
-    // PAGINATION
-    // ==================================================
-
-    const totalRows = filteredRows.length;
-
-    const totalPages = Math.max(
-        1,
-        Math.ceil(totalRows / pageSize)
-    );
-
-    const safeCurrentPage = Math.min(
-        currentPage,
-        totalPages
-    );
-
-    const startIndex =
-        totalRows === 0
-            ? 0
-            : (safeCurrentPage - 1) * pageSize;
-
-    const endIndex = Math.min(
-        startIndex + pageSize,
-        totalRows
-    );
-
-    const paginatedRows = filteredRows.slice(
-        startIndex,
-        endIndex
-    );
-
-    // ==================================================
-    // SORT HANDLER
-    // ==================================================
-
-    const handleSort = (field) => {
-        if (sortField === field) {
-            setSortDirection((previous) =>
-                previous === "asc" ? "desc" : "asc"
-            );
-        } else {
-            setSortField(field);
-            setSortDirection("asc");
-        }
-
-        setCurrentPage(1);
-    };
-
-    const SortIcon = ({ field }) => {
-        if (sortField !== field) {
-            return null;
-        }
-
-        return sortDirection === "asc"
-            ? <MdKeyboardArrowUp size={18} />
-            : <MdKeyboardArrowDown size={18} />;
-    };
-
-    // ==================================================
-    // SUMMARY CARDS
-    // ==================================================
-
-    const summaryCards = [
-        {
-            title: "Rows Read",
-            value: result?.totalRowsRead ?? 0,
-            cardClass: "bg-slate-50",
-            titleClass: "text-slate-500",
-            valueClass: "text-slate-800"
-        },
-        {
-            title: "Inserted Rows",
-            value: result?.insertedRows ?? 0,
-            cardClass: "bg-emerald-50",
-            titleClass: "text-emerald-700",
-            valueClass: "text-emerald-800"
-        },
-        {
-            title: "Updated Rows",
-            value: result?.updatedRows ?? 0,
-            cardClass: "bg-blue-50",
-            titleClass: "text-blue-700",
-            valueClass: "text-blue-800"
-        },
-        {
-            title: "Unchanged Rows",
-            value: result?.unchangedRows ?? 0,
-            cardClass: "bg-violet-50",
-            titleClass: "text-violet-700",
-            valueClass: "text-violet-800"
-        },
-        {
-            title: "Skipped Rows",
-            value: result?.skippedRows ?? 0,
-            cardClass: "bg-amber-50",
-            titleClass: "text-amber-700",
-            valueClass: "text-amber-800"
-        }
-    ];
-
-    // ==================================================
-    // TABLE COLUMNS
-    // ==================================================
-
-    const columns = [
-        {
-            key: "jobcard",
-            label: "Job Card No."
-        },
-        {
-            key: "sku",
-            label: "SKU"
-        },
-        {
-            key: "reportdate",
-            label: "Report Date"
-        },
-        {
-            key: "article",
-            label: "Article"
-        },
-        {
-            key: "colour",
-            label: "Colour"
-        },
-        {
-            key: "size",
-            label: "Size"
-        },
-        {
-            key: "pair",
-            label: "Pair"
-        },
-        {
-            key: "cuttingreceiveddate",
-            label: "Cutting Received Date"
-        },
-        {
-            key: "cuttingcontractor",
-            label: "Cutting Contractor"
-        },
-        {
-            key: "uppercontractor",
-            label: "Upper Contractor"
-        },
-        {
-            key: "upperissuedate",
-            label: "Upper Issue Date"
-        },
-        {
-            key: "upperreceiveddate",
-            label: "Upper Received Date"
-        },
-        {
-            key: "upperreceivedpair",
-            label: "Upper Received Pair"
-        },
-        {
-            key: "upperinsolecontractor",
-            label: "Upper/Insole Contractor"
-        },
-        {
-            key: "upperinsoleissueddate",
-            label: "Upper/Insole Issued Date"
-        },
-        {
-            key: "upperstorereceiveddate",
-            label: "Upper Store Received Date"
-        },
-        {
-            key: "upperstorepairqty",
-            label: "Upper Store Pair Qty"
-        },
-        {
-            key: "upperstorestatus",
-            label: "Upper Store Status"
-        },
-        {
-            key: "machineno",
-            label: "Machine No."
-        },
-        {
-            key: "machineissuedate",
-            label: "Machine Issue Date"
-        },
-        {
-            key: "machinepairqty",
-            label: "Machine Pair Qty"
-        },
-        {
-            key: "firstpair",
-            label: "1st Pair"
-        },
-        {
-            key: "secondpair",
-            label: "2nd Pair"
-        },
-        {
-            key: "rejection",
-            label: "Rejection"
-        },
-        {
-            key: "totalpair",
-            label: "Total Pair"
-        }
-    ];
-
-    // ==================================================
-    // RENDER
-    // ==================================================
-
-    return (
-        <div className="min-h-screen bg-slate-50 p-4 md:p-6">
-            <div className="mx-auto max-w-[1800px]">
-
-                {/* PAGE HEADER */}
-                <div className="mb-6">
-                    <h1 className="text-2xl font-bold text-slate-800">
-                        Production Excel Upload
-                    </h1>
-
-                    <p className="mt-1 text-sm text-slate-500">
-                        Upload production Excel and view imported
-                        records with filters in MOSACH ERP.
-                    </p>
-                </div>
-
-                {/* UPLOAD CARD */}
-                <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm md:p-8">
-
-                    <div className="mb-6 flex items-center gap-3">
-                        <div className="rounded-lg bg-orange-100 p-3">
-                            <MdCloudUpload
-                                size={28}
-                                className="text-orange-600"
-                            />
-                        </div>
-
-                        <div>
-                            <h2 className="text-lg font-semibold text-slate-800">
-                                Import Production Data
-                            </h2>
-
-                            <p className="text-sm text-slate-500">
-                                Supported formats: XLSX, XLS · Maximum 10 MB
-                            </p>
-                        </div>
-                    </div>
-
-                    <form onSubmit={handleUpload}>
-
-                        {/* FILE SELECTOR */}
-                        <label
-                            htmlFor="productionExcel"
-                            className="flex min-h-52 cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 p-6 text-center transition hover:border-orange-400 hover:bg-orange-50"
-                        >
-                            <MdCloudUpload
-                                size={48}
-                                className="mb-3 text-orange-500"
-                            />
-
-                            <span className="font-semibold text-slate-700">
-                                Click to select production Excel
-                            </span>
-
-                            <span className="mt-2 text-sm text-slate-500">
-                                Choose an .xlsx or .xls file
-                            </span>
-
-                            <input
-                                id="productionExcel"
-                                type="file"
-                                accept=".xlsx,.xls"
-                                onChange={handleFileChange}
-                                className="hidden"
-                            />
-                        </label>
-
-                        {/* SELECTED FILE */}
-                        {file && (
-                            <div className="mt-4 flex items-center gap-3 rounded-lg border border-slate-200 p-4">
-                                <MdDescription
-                                    size={30}
-                                    className="shrink-0 text-emerald-600"
-                                />
-
-                                <div className="min-w-0 flex-1">
-                                    <p className="truncate font-medium text-slate-700">
-                                        {file.name}
-                                    </p>
-
-                                    <p className="text-sm text-slate-500">
-                                        {(file.size / 1024).toFixed(2)} KB
-                                    </p>
-                                </div>
-
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        setFile(null);
-
-                                        const input =
-                                            document.getElementById(
-                                                "productionExcel"
-                                            );
-
-                                        if (input) {
-                                            input.value = "";
-                                        }
-                                    }}
-                                    className="text-sm font-medium text-red-600 hover:underline"
-                                >
-                                    Remove
-                                </button>
-                            </div>
-                        )}
-
-                        {/* ERROR MESSAGE */}
-                        {error && (
-                            <div className="mt-4 flex items-start gap-2 rounded-lg bg-red-50 p-3 text-sm text-red-700">
-                                <MdError
-                                    size={20}
-                                    className="shrink-0"
-                                />
-
-                                <span>{error}</span>
-                            </div>
-                        )}
-
-                        {/* SUCCESS MESSAGE */}
-                        {message && (
-                            <div className="mt-4 flex items-start gap-2 rounded-lg bg-emerald-50 p-3 text-sm text-emerald-700">
-                                <MdCheckCircle
-                                    size={20}
-                                    className="shrink-0"
-                                />
-
-                                <span>{message}</span>
-                            </div>
-                        )}
-
-                        {/* UPLOAD SUMMARY */}
-                        {result && (
-                            <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-                                {summaryCards.map((card) => (
-                                    <div
-                                        key={card.title}
-                                        className={`rounded-lg p-4 ${card.cardClass}`}
-                                    >
-                                        <p className={`text-sm ${card.titleClass}`}>
-                                            {card.title}
-                                        </p>
-
-                                        <p className={`mt-1 text-2xl font-bold ${card.valueClass}`}>
-                                            {card.value}
-                                        </p>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-
-                        {/* UPLOAD BUTTON */}
-                        <div className="mt-6 flex justify-end">
-                            <button
-                                type="submit"
-                                disabled={!file || loading}
-                                className="flex items-center gap-2 rounded-lg bg-orange-500 px-6 py-3 font-semibold text-white transition hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-50"
-                            >
-                                <MdCloudUpload size={22} />
-
-                                {loading
-                                    ? "Uploading..."
-                                    : "Upload Excel"}
-                            </button>
-                        </div>
-                    </form>
-                </div>
-
-                {/* ==================================================
-                    UPLOADED DATA GRID
-                ================================================== */}
-
-                {result && (
-                    <div className="mt-6 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-
-                        {/* GRID HEADER */}
-                        <div className="flex flex-col gap-3 border-b border-slate-200 p-5 md:flex-row md:items-center md:justify-between">
-                            <div>
-                                <h2 className="text-lg font-bold text-slate-800">
-                                    Uploaded Production Records
-                                </h2>
-
-                                <p className="mt-1 text-sm text-slate-500">
-                                    File: {result.fileName || "Excel file"}
-                                </p>
-                            </div>
-
-                            <div className="rounded-lg bg-orange-50 px-4 py-2 text-sm font-semibold text-orange-700">
-                                Showing {totalRows} of {uploadedRows.length} records
-                            </div>
-                        </div>
-
-                        {/* FILTERS */}
-                        <div className="space-y-4 border-b border-slate-200 bg-slate-50 p-5">
-
-                            <div className="flex items-center gap-2 font-semibold text-slate-700">
-                                <MdFilterList size={22} />
-                                Filter Production Data
-                            </div>
-
-                            {/* SEARCH */}
-                            <div className="relative">
-                                <MdSearch
-                                    size={22}
-                                    className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-                                />
-
-                                <input
-                                    type="text"
-                                    value={search}
-                                    onChange={(event) => {
-                                        setSearch(event.target.value);
-                                        setCurrentPage(1);
-                                    }}
-                                    placeholder="Search Job Card, SKU, Article, Colour, Size, Machine..."
-                                    className="w-full rounded-lg border border-slate-300 bg-white py-3 pl-10 pr-4 text-sm outline-none transition focus:border-orange-400 focus:ring-2 focus:ring-orange-100"
-                                />
-                            </div>
-
-                            {/* FILTER GRID */}
-                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-
-                                <div>
-                                    <label className="mb-1 block text-xs font-semibold text-slate-600">
-                                        Job Card No.
-                                    </label>
-
-                                    <input
-                                        type="text"
-                                        value={filterJobcard}
-                                        onChange={(event) => {
-                                            setFilterJobcard(event.target.value);
-                                            setCurrentPage(1);
-                                        }}
-                                        placeholder="Enter Job Card"
-                                        className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm outline-none focus:border-orange-400"
-                                    />
-                                </div>
-
-                                <div>
-                                    <label className="mb-1 block text-xs font-semibold text-slate-600">
-                                        Article
-                                    </label>
-
-                                    <select
-                                        value={filterArticle}
-                                        onChange={(event) => {
-                                            setFilterArticle(event.target.value);
-                                            setCurrentPage(1);
-                                        }}
-                                        className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm outline-none focus:border-orange-400"
-                                    >
-                                        <option value="">All Articles</option>
-
-                                        {articleOptions.map((article) => (
-                                            <option key={article} value={article}>
-                                                {article}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-
-                                <div>
-                                    <label className="mb-1 block text-xs font-semibold text-slate-600">
-                                        Colour
-                                    </label>
-
-                                    <select
-                                        value={filterColour}
-                                        onChange={(event) => {
-                                            setFilterColour(event.target.value);
-                                            setCurrentPage(1);
-                                        }}
-                                        className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm outline-none focus:border-orange-400"
-                                    >
-                                        <option value="">All Colours</option>
-
-                                        {colourOptions.map((colour) => (
-                                            <option key={colour} value={colour}>
-                                                {colour}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-
-                                <div>
-                                    <label className="mb-1 block text-xs font-semibold text-slate-600">
-                                        Size
-                                    </label>
-
-                                    <select
-                                        value={filterSize}
-                                        onChange={(event) => {
-                                            setFilterSize(event.target.value);
-                                            setCurrentPage(1);
-                                        }}
-                                        className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm outline-none focus:border-orange-400"
-                                    >
-                                        <option value="">All Sizes</option>
-
-                                        {sizeOptions.map((size) => (
-                                            <option key={size} value={size}>
-                                                {size}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-
-                                <div>
-                                    <label className="mb-1 block text-xs font-semibold text-slate-600">
-                                        From Date
-                                    </label>
-
-                                    <input
-                                        type="date"
-                                        value={fromDate}
-                                        max={toDate || undefined}
-                                        onChange={(event) => {
-                                            setFromDate(event.target.value);
-                                            setCurrentPage(1);
-                                        }}
-                                        className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm outline-none focus:border-orange-400"
-                                    />
-                                </div>
-
-                                <div>
-                                    <label className="mb-1 block text-xs font-semibold text-slate-600">
-                                        To Date
-                                    </label>
-
-                                    <input
-                                        type="date"
-                                        value={toDate}
-                                        min={fromDate || undefined}
-                                        onChange={(event) => {
-                                            setToDate(event.target.value);
-                                            setCurrentPage(1);
-                                        }}
-                                        className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm outline-none focus:border-orange-400"
-                                    />
-                                </div>
-                            </div>
-
-                            {/* FILTER ACTIONS */}
-                            <div className="flex flex-wrap items-center justify-between gap-3">
-                                <p className="text-sm text-slate-500">
-                                    Filtered records:{" "}
-                                    <strong className="text-slate-700">
-                                        {totalRows}
-                                    </strong>
-                                </p>
-
-                                <button
-                                    type="button"
-                                    onClick={resetFilters}
-                                    className="flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
-                                >
-                                    <MdRefresh size={19} />
-                                    Reset Filters
-                                </button>
-                            </div>
-                        </div>
-
-                        {/* TABLE */}
-                        <div className="w-full overflow-x-auto">
-                            <table className="min-w-max border-collapse text-left text-sm">
-
-                                <thead className="bg-slate-800 text-white">
-                                    <tr>
-                                        <th className="whitespace-nowrap px-4 py-3 text-center">
-                                            #
-                                        </th>
-
-                                        {columns.map((column) => (
-                                            <th
-                                                key={column.key}
-                                                className="whitespace-nowrap px-4 py-3"
-                                            >
-                                                <button
-                                                    type="button"
-                                                    onClick={() =>
-                                                        handleSort(column.key)
-                                                    }
-                                                    className="flex items-center gap-1 font-semibold hover:text-orange-300"
-                                                >
-                                                    {column.label}
-
-                                                    <SortIcon field={column.key} />
-                                                </button>
-                                            </th>
-                                        ))}
-                                    </tr>
-                                </thead>
-
-                                <tbody>
-                                    {paginatedRows.length > 0 ? (
-                                        paginatedRows.map((row, index) => (
-                                            <tr
-                                                key={`${row.jobcard}-${index}`}
-                                                className={`border-b border-slate-200 transition hover:bg-orange-50 ${
-                                                    index % 2 === 0
-                                                        ? "bg-white"
-                                                        : "bg-slate-50"
-                                                }`}
-                                            >
-                                                <td className="px-4 py-3 text-center text-slate-500">
-                                                    {startIndex + index + 1}
-                                                </td>
-
-                                                {columns.map((column) => {
-                                                    const value = row[column.key];
-
-                                                    return (
-                                                        <td
-                                                            key={column.key}
-                                                            className={`whitespace-nowrap px-4 py-3 ${
-                                                                column.key === "jobcard"
-                                                                    ? "font-semibold text-orange-700"
-                                                                    : "text-slate-700"
-                                                            }`}
-                                                        >
-                                                            {value === null ||
-                                                            value === undefined ||
-                                                            value === ""
-                                                                ? "-"
-                                                                : String(value).slice(0, 100)}
-                                                        </td>
-                                                    );
-                                                })}
-                                            </tr>
-                                        ))
-                                    ) : (
-                                        <tr>
-                                            <td
-                                                colSpan={columns.length + 1}
-                                                className="px-4 py-12 text-center"
-                                            >
-                                                <MdSearch
-                                                    size={38}
-                                                    className="mx-auto mb-2 text-slate-300"
-                                                />
-
-                                                <p className="font-semibold text-slate-600">
-                                                    No records found
-                                                </p>
-
-                                                <p className="mt-1 text-sm text-slate-400">
-                                                    Try changing your search or filters.
-                                                </p>
-                                            </td>
-                                        </tr>
-                                    )}
-                                </tbody>
-                            </table>
-                        </div>
-
-                        {/* PAGINATION */}
-                        <div className="flex flex-col gap-4 border-t border-slate-200 bg-white p-4 md:flex-row md:items-center md:justify-between">
-
-                            <div className="flex flex-wrap items-center gap-2 text-sm text-slate-600">
-                                <span>Rows per page:</span>
-
-                                <select
-                                    value={pageSize}
-                                    onChange={(event) => {
-                                        setPageSize(Number(event.target.value));
-                                        setCurrentPage(1);
-                                    }}
-                                    className="rounded-lg border border-slate-300 bg-white px-3 py-2 outline-none focus:border-orange-400"
-                                >
-                                    {PAGE_SIZE_OPTIONS.map((size) => (
-                                        <option key={size} value={size}>
-                                            {size}
-                                        </option>
-                                    ))}
-                                </select>
-
-                                <span className="ml-2">
-                                    {totalRows === 0
-                                        ? "0 records"
-                                        : `${startIndex + 1}-${endIndex} of ${totalRows}`}
-                                </span>
-                            </div>
-
-                            <div className="flex items-center gap-2">
-
-                                <button
-                                    type="button"
-                                    disabled={safeCurrentPage <= 1}
-                                    onClick={() => setCurrentPage(1)}
-                                    title="First Page"
-                                    className="rounded-lg border border-slate-300 p-2 text-slate-600 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
-                                >
-                                    <MdFirstPage size={21} />
-                                </button>
-
-                                <button
-                                    type="button"
-                                    disabled={safeCurrentPage <= 1}
-                                    onClick={() =>
-                                        setCurrentPage((page) => page - 1)
-                                    }
-                                    className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
-                                >
-                                    Previous
-                                </button>
-
-                                <span className="whitespace-nowrap px-2 text-sm font-semibold text-slate-700">
-                                    Page {safeCurrentPage} of {totalPages}
-                                </span>
-
-                                <button
-                                    type="button"
-                                    disabled={safeCurrentPage >= totalPages}
-                                    onClick={() =>
-                                        setCurrentPage((page) => page + 1)
-                                    }
-                                    className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
-                                >
-                                    Next
-                                </button>
-
-                                <button
-                                    type="button"
-                                    disabled={safeCurrentPage >= totalPages}
-                                    onClick={() =>
-                                        setCurrentPage(totalPages)
-                                    }
-                                    title="Last Page"
-                                    className="rounded-lg border border-slate-300 p-2 text-slate-600 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
-                                >
-                                    <MdLastPage size={21} />
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                )}
-
-                {/* IMPORTANT NOTE */}
-                <div className="mt-5 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-                    <strong>Important:</strong>{" "}
-                    Excel upload se pehle ensure karein ki file ke
-                    column headings aur data sahi hain. Backend fixed
-                    Excel column positions use karta hai. Grid mein
-                    latest uploaded Excel ki rows dikhengi.
-                </div>
-
-            </div>
-        </div>
-    );
+const MAX_FILE_SIZE = 10 * 1024 * 1024;
+
+// ======================================================
+// DATABASE FIELD MAPPING
+// ======================================================
+
+const columns = [
+["jobcard", "Job Card"],
+["sku", "SKU"],
+["reportdate", "Report Date"],
+["article", "Article"],
+["colour", "Colour"],
+["size", "Size"],
+["pair", "Pair"],
+["packing", "Packing"],
+["carton", "Carton"],
+["cuttingreceiveddate", "Cutting Received Date"],
+["cuttingcontractor", "Cutting Contractor"],
+["uppercontractor", "Upper Contractor"],
+["upperissuedate", "Upper Issue Date"],
+["upperreceiveddate", "Upper Received Date"],
+["upperreceivedpair", "Upper Received Pair"],
+["upperinsolecontractor", "Upper/Insole Contractor"],
+["upperinsoleissueddate", "Upper/Insole Issued Date"],
+["upperstorereceiveddate", "Upper Store Received Date"],
+["upperstorepairqty", "Upper Store Pair Qty"],
+["upperstorestatus", "Status"],
+["machineno", "Machine No."],
+["machineissuedate", "Machine Issue Date"],
+["machinepairqty", "Machine Pair Qty"],
+["firstpair", "1st Pair"],
+["secondpair", "2nd Pair"],
+["rejection", "Rejection"],
+["totalpair", "Total Pair"],
+];
+
+// ======================================================
+// HELPER FUNCTIONS
+// ======================================================
+
+const displayValue = (value) => {
+if (value === null || value === undefined || value === "") {
+return "-";
+}
+
+if (value instanceof Date && !Number.isNaN(value.getTime())) {
+return value.toISOString().slice(0, 10);
+}
+
+if (typeof value === "string" && value.includes("T")) {
+return value.slice(0, 10);
+}
+
+return String(value);
 };
 
-export default ProductionUpload;
+const getDateValue = (value) => {
+if (!value) return "";
+
+if (value instanceof Date && !Number.isNaN(value.getTime())) {
+return value.toISOString().slice(0, 10);
+}
+
+return String(value).slice(0, 10);
+};
+
+const getErrorMessage = (error) => {
+const responseData = error.response?.data;
+
+if (responseData?.message) {
+const details = responseData.error;
+
+ 
+return details
+  ? `${responseData.message} ${details}`
+  : responseData.message;
+ 
+
+}
+
+if (error.code === "ECONNABORTED") {
+return "Request timeout ho gaya. Render server ko dobara try karein.";
+}
+
+if (!error.response) {
+return "Server se connection nahi ho raha. Internet aur Render API check karein.";
+}
+
+return error.message || "Unexpected error occurred.";
+};
+
+const getReportRows = (responseData) => {
+if (Array.isArray(responseData)) {
+return responseData;
+}
+
+if (Array.isArray(responseData?.data)) {
+return responseData.data;
+}
+
+if (Array.isArray(responseData?.rows)) {
+return responseData.rows;
+}
+
+if (Array.isArray(responseData?.data?.rows)) {
+return responseData.data.rows;
+}
+
+if (Array.isArray(responseData?.data?.records)) {
+return responseData.data.records;
+}
+
+if (Array.isArray(responseData?.records)) {
+return responseData.records;
+}
+
+return [];
+};
+
+const getUploadResult = (payload, fileName) => {
+const nestedData =
+payload?.data &&
+!Array.isArray(payload.data) &&
+typeof payload.data === "object"
+? payload.data
+: {};
+
+return {
+...payload,
+...nestedData,
+fileName,
+};
+};
+
+// ======================================================
+// MAIN COMPONENT
+// ======================================================
+
+export default function ProductionUpload() {
+const [file, setFile] = useState(null);
+
+const [loading, setLoading] = useState(false);
+const [reportLoading, setReportLoading] = useState(false);
+
+const [message, setMessage] = useState("");
+const [error, setError] = useState("");
+
+const [result, setResult] = useState(null);
+const [rows, setRows] = useState([]);
+
+const [search, setSearch] = useState("");
+const [fromDate, setFromDate] = useState("");
+const [toDate, setToDate] = useState("");
+
+const [sortField, setSortField] = useState("jobcard");
+const [sortDirection, setSortDirection] = useState("asc");
+
+const [page, setPage] = useState(1);
+const [pageSize, setPageSize] = useState(10);
+
+// ====================================================
+// LOAD PRODUCTION REPORT
+// ====================================================
+
+const fetchReport = useCallback(async () => {
+setReportLoading(true);
+setError("");
+
+ 
+try {
+  const response = await axios.get(API_BASE_URL, {
+    timeout: 120000,
+  });
+
+  if (response.data?.success === false) {
+    throw new Error(
+      response.data.message || "Production report load nahi hua."
+    );
+  }
+
+  const reportRows = getReportRows(response.data);
+
+  setRows(reportRows);
+} catch (err) {
+  setError(getErrorMessage(err));
+} finally {
+  setReportLoading(false);
+}
+ 
+
+}, []);
+
+useEffect(() => {
+fetchReport();
+}, [fetchReport]);
+
+// ====================================================
+// SELECT EXCEL FILE
+// ====================================================
+
+const handleFile = (event) => {
+const selected = event.target.files?.[0] || null;
+
+ 
+setFile(null);
+setError("");
+setMessage("");
+setResult(null);
+
+if (!selected) return;
+
+if (!/\.(xlsx|xls)$/i.test(selected.name)) {
+  setError("Sirf .xlsx ya .xls Excel file select karein.");
+  event.target.value = "";
+  return;
+}
+
+if (selected.size > MAX_FILE_SIZE) {
+  setError("Excel file ka size maximum 10 MB hona chahiye.");
+  event.target.value = "";
+  return;
+}
+
+setFile(selected);
+ 
+
+};
+
+// ====================================================
+// UPLOAD EXCEL
+// ====================================================
+
+const upload = async (event) => {
+event.preventDefault();
+
+ 
+if (!file) {
+  setError("Pehle Excel file select karein.");
+  return;
+}
+
+setLoading(true);
+setError("");
+setMessage("");
+setResult(null);
+
+try {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const response = await axios.post(
+    `${API_BASE_URL}/upload`,
+    formData,
+    {
+      timeout: 120000,
+    }
+  );
+
+  const payload = response.data;
+
+  if (!payload || payload.success !== true) {
+    throw new Error(
+      payload?.message || "Production Excel upload failed."
+    );
+  }
+
+  const uploadResult = getUploadResult(payload, file.name);
+
+  setResult(uploadResult);
+
+  setMessage(
+    payload.message ||
+      "Production Excel successfully upload ho gayi."
+  );
+
+  setFile(null);
+
+  const input = document.getElementById("production-file");
+
+  if (input) {
+    input.value = "";
+  }
+
+  await fetchReport();
+
+  setPage(1);
+} catch (err) {
+  setError(getErrorMessage(err));
+} finally {
+  setLoading(false);
+}
+ 
+
+};
+
+// ====================================================
+// SEARCH, FILTER AND SORT
+// ====================================================
+
+const filteredRows = useMemo(() => {
+let list = [...rows];
+
+ 
+const query = search.trim().toLowerCase();
+
+if (query) {
+  list = list.filter((row) =>
+    columns.some(([key]) =>
+      String(row[key] ?? "")
+        .toLowerCase()
+        .includes(query)
+    )
+  );
+}
+
+if (fromDate) {
+  list = list.filter(
+    (row) => getDateValue(row.reportdate) >= fromDate
+  );
+}
+
+if (toDate) {
+  list = list.filter(
+    (row) => getDateValue(row.reportdate) <= toDate
+  );
+}
+
+list.sort((a, b) => {
+  const av = a[sortField] ?? "";
+  const bv = b[sortField] ?? "";
+
+  const an = Number(av);
+  const bn = Number(bv);
+
+  const bothNumeric =
+    av !== "" &&
+    bv !== "" &&
+    Number.isFinite(an) &&
+    Number.isFinite(bn);
+
+  let comparison;
+
+  if (bothNumeric) {
+    comparison = an - bn;
+  } else {
+    comparison = String(av).localeCompare(
+      String(bv),
+      undefined,
+      {
+        numeric: true,
+        sensitivity: "base",
+      }
+    );
+  }
+
+  return sortDirection === "asc" ? comparison : -comparison;
+});
+
+return list;
+ 
+
+}, [
+rows,
+search,
+fromDate,
+toDate,
+sortField,
+sortDirection,
+]);
+
+useEffect(() => {
+setPage(1);
+}, [search, fromDate, toDate, pageSize]);
+
+const totalPages = Math.max(
+1,
+Math.ceil(filteredRows.length / pageSize)
+);
+
+const safePage = Math.min(page, totalPages);
+
+const pageRows = filteredRows.slice(
+(safePage - 1) * pageSize,
+safePage * pageSize
+);
+
+// ====================================================
+// RESET FILTERS
+// ====================================================
+
+const resetFilters = () => {
+setSearch("");
+setFromDate("");
+setToDate("");
+setSortField("jobcard");
+setSortDirection("asc");
+setPage(1);
+};
+
+const toggleSort = (field) => {
+if (sortField === field) {
+setSortDirection((direction) =>
+direction === "asc" ? "desc" : "asc"
+);
+} else {
+setSortField(field);
+setSortDirection("asc");
+}
+};
+
+// ====================================================
+// UPLOAD SUMMARY
+// ====================================================
+
+const summary = [
+{
+title: "Rows Read",
+value:
+result?.totalExcelRows ??
+result?.totalRowsRead ??
+result?.totalRows ??
+result?.rowsRead ??
+0,
+className: "bg-slate-100 text-slate-800",
+},
+{
+title: "Inserted",
+value: result?.insertedRows ?? 0,
+className: "bg-emerald-50 text-emerald-800",
+},
+{
+title: "Updated",
+value: result?.updatedRows ?? 0,
+className: "bg-blue-50 text-blue-800",
+},
+{
+title: "Unchanged",
+value: result?.unchangedRows ?? 0,
+className: "bg-violet-50 text-violet-800",
+},
+{
+title: "Skipped",
+value:
+(result?.skippedRows ?? 0) +
+(result?.invalidJobCardRows ?? 0),
+className: "bg-amber-50 text-amber-800",
+},
+];
+
+// ====================================================
+// RENDER
+// ====================================================
+
+return ( <main className="min-h-screen bg-slate-50 p-4 md:p-6"> <div className="mx-auto max-w-[1800px]">
+{/* HEADER */}
+
+ 
+    <header className="mb-6">
+      <h1 className="text-2xl font-bold text-slate-800">
+        Production Excel Upload
+      </h1>
+
+      <p className="mt-1 text-sm text-slate-500">
+        Upload Excel, save production records in MOSACH ERP,
+        and review records loaded from the database.
+      </p>
+    </header>
+
+    {/* UPLOAD SECTION */}
+
+    <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm md:p-7">
+      <form onSubmit={upload}>
+        <label
+          htmlFor="production-file"
+          className="flex min-h-40 cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 p-6 text-center transition hover:border-orange-400 hover:bg-orange-50"
+        >
+          <MdCloudUpload
+            size={44}
+            className="mb-2 text-orange-500"
+          />
+
+          <span className="font-semibold text-slate-700">
+            Excel file select karne ke liye click karein
+          </span>
+
+          <span className="mt-1 text-sm text-slate-500">
+            XLS / XLSX · Maximum 10 MB
+          </span>
+
+          <input
+            id="production-file"
+            type="file"
+            accept=".xlsx,.xls"
+            onChange={handleFile}
+            className="hidden"
+          />
+        </label>
+
+        {file && (
+          <p className="mt-3 rounded-lg bg-slate-100 p-3 text-sm text-slate-700">
+            Selected: <strong>{file.name}</strong> (
+            {(file.size / 1024).toFixed(1)} KB)
+          </p>
+        )}
+
+        {error && (
+          <div
+            role="alert"
+            className="mt-4 flex items-start gap-2 rounded-lg bg-red-50 p-3 text-sm text-red-700"
+          >
+            <MdError size={20} className="shrink-0" />
+            <span className="break-words">{error}</span>
+          </div>
+        )}
+
+        {message && (
+          <div
+            role="status"
+            className="mt-4 flex items-start gap-2 rounded-lg bg-emerald-50 p-3 text-sm text-emerald-700"
+          >
+            <MdCheckCircle size={20} className="shrink-0" />
+            <span>{message}</span>
+          </div>
+        )}
+
+        <div className="mt-5 flex justify-end">
+          <button
+            type="submit"
+            disabled={!file || loading}
+            className="flex items-center gap-2 rounded-lg bg-orange-500 px-6 py-3 font-semibold text-white transition hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <MdCloudUpload size={21} />
+            {loading ? "Uploading and saving..." : "Upload Excel"}
+          </button>
+        </div>
+      </form>
+
+      {/* UPLOAD RESULT SUMMARY */}
+
+      {result && (
+        <div className="mt-6">
+          <p className="mb-3 text-sm font-semibold text-slate-700">
+            Uploaded file: {result.fileName}
+          </p>
+
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
+            {summary.map((item) => (
+              <div
+                key={item.title}
+                className={`rounded-lg p-4 ${item.className}`}
+              >
+                <p className="text-sm">{item.title}</p>
+                <p className="mt-1 text-2xl font-bold">
+                  {item.value}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </section>
+
+    {/* DATABASE REPORT */}
+
+    <section className="mt-6 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+      <div className="flex flex-col gap-3 border-b p-5 md:flex-row md:items-center md:justify-between">
+        <div>
+          <h2 className="text-lg font-bold text-slate-800">
+            Production Records
+          </h2>
+
+          <p className="text-sm text-slate-500">
+            Records loaded from the production report API.
+          </p>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="rounded-lg bg-orange-50 px-4 py-2 text-sm font-semibold text-orange-700">
+            {filteredRows.length} records
+          </span>
+
+          <button
+            type="button"
+            onClick={fetchReport}
+            disabled={reportLoading}
+            className="flex items-center gap-2 rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+          >
+            <MdRefresh
+              size={19}
+              className={reportLoading ? "animate-spin" : ""}
+            />
+            {reportLoading ? "Loading..." : "Refresh"}
+          </button>
+        </div>
+      </div>
+
+      {/* FILTERS */}
+
+      <div className="grid grid-cols-1 gap-3 border-b bg-slate-50 p-5 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="relative">
+          <MdSearch
+            size={20}
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+          />
+
+          <input
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Search all columns..."
+            className="w-full rounded-lg border border-slate-300 bg-white py-2.5 pl-10 pr-3 text-sm outline-none focus:border-orange-400"
+          />
+        </div>
+
+        <label className="text-xs font-semibold text-slate-600">
+          From Date
+          <input
+            type="date"
+            value={fromDate}
+            max={toDate || undefined}
+            onChange={(event) => setFromDate(event.target.value)}
+            className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-normal"
+          />
+        </label>
+
+        <label className="text-xs font-semibold text-slate-600">
+          To Date
+          <input
+            type="date"
+            value={toDate}
+            min={fromDate || undefined}
+            onChange={(event) => setToDate(event.target.value)}
+            className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-normal"
+          />
+        </label>
+
+        <button
+          type="button"
+          onClick={resetFilters}
+          className="flex items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100"
+        >
+          <MdRefresh size={19} />
+          Reset Filters
+        </button>
+      </div>
+
+      {/* TABLE */}
+
+      <div className="w-full overflow-auto">
+        <table className="min-w-max border-collapse text-left text-sm">
+          <thead className="bg-slate-800 text-white">
+            <tr>
+              <th className="px-4 py-3">#</th>
+
+              {columns.map(([key, label]) => (
+                <th
+                  key={key}
+                  className="whitespace-nowrap px-4 py-3"
+                >
+                  <button
+                    type="button"
+                    onClick={() => toggleSort(key)}
+                    className="flex items-center gap-1 font-semibold hover:text-orange-300"
+                  >
+                    {label}
+
+                    {sortField === key &&
+                      (sortDirection === "asc" ? (
+                        <MdKeyboardArrowUp size={18} />
+                      ) : (
+                        <MdKeyboardArrowDown size={18} />
+                      ))}
+                  </button>
+                </th>
+              ))}
+            </tr>
+          </thead>
+
+          <tbody>
+            {pageRows.length > 0 ? (
+              pageRows.map((row, index) => (
+                <tr
+                  key={
+                    row.productionreportid ??
+                    `${row.jobcard ?? "job"}-${row.sku ?? "sku"}-${index}`
+                  }
+                  className={`border-b border-slate-200 transition hover:bg-orange-50 ${
+                    index % 2 ? "bg-slate-50" : "bg-white"
+                  }`}
+                >
+                  <td className="px-4 py-3 text-slate-500">
+                    {(safePage - 1) * pageSize + index + 1}
+                  </td>
+
+                  {columns.map(([key]) => (
+                    <td
+                      key={key}
+                      className={`whitespace-nowrap px-4 py-3 ${
+                        key === "jobcard"
+                          ? "font-semibold text-orange-700"
+                          : "text-slate-700"
+                      }`}
+                    >
+                      {displayValue(row[key])}
+                    </td>
+                  ))}
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td
+                  colSpan={columns.length + 1}
+                  className="px-4 py-12 text-center text-slate-500"
+                >
+                  {reportLoading
+                    ? "Loading production records..."
+                    : error
+                      ? "Records load nahi ho sake. Upar error check karein."
+                      : "No records found."}
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {/* PAGINATION */}
+
+      <div className="flex flex-col gap-3 border-t p-4 md:flex-row md:items-center md:justify-between">
+        <div className="flex flex-wrap items-center gap-2 text-sm text-slate-600">
+          <span>Rows per page</span>
+
+          <select
+            value={pageSize}
+            onChange={(event) =>
+              setPageSize(Number(event.target.value))
+            }
+            className="rounded-lg border border-slate-300 bg-white px-3 py-2"
+          >
+            {PAGE_SIZE_OPTIONS.map((size) => (
+              <option key={size} value={size}>
+                {size}
+              </option>
+            ))}
+          </select>
+
+          <span>
+            {filteredRows.length
+              ? `${(safePage - 1) * pageSize + 1}-${Math.min(
+                  safePage * pageSize,
+                  filteredRows.length
+                )} of ${filteredRows.length}`
+              : "0 records"}
+          </span>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            disabled={safePage <= 1}
+            onClick={() => setPage(1)}
+            className="rounded border px-3 py-2 disabled:opacity-40"
+          >
+            First
+          </button>
+
+          <button
+            type="button"
+            disabled={safePage <= 1}
+            onClick={() => setPage((current) => current - 1)}
+            className="rounded border px-3 py-2 disabled:opacity-40"
+          >
+            Previous
+          </button>
+
+          <span className="text-sm">
+            Page {safePage} / {totalPages}
+          </span>
+
+          <button
+            type="button"
+            disabled={safePage >= totalPages}
+            onClick={() => setPage((current) => current + 1)}
+            className="rounded border px-3 py-2 disabled:opacity-40"
+          >
+            Next
+          </button>
+
+          <button
+            type="button"
+            disabled={safePage >= totalPages}
+            onClick={() => setPage(totalPages)}
+            className="rounded border px-3 py-2 disabled:opacity-40"
+          >
+            Last
+          </button>
+        </div>
+      </div>
+    </section>
+
+    {/* IMPORT NOTES */}
+
+    <div className="mt-5 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+      <strong>Import Notes:</strong>
+
+      <ul className="mt-2 list-disc space-y-1 pl-5">
+        <li>Excel file format XLS/XLSX hona chahiye.</li>
+        <li>Maximum file size 10 MB hai.</li>
+        <li>
+          Excel headings aur database field mapping backend controller
+          ke according honi chahiye.
+        </li>
+        <li>
+          Carton column Excel mein nahi hai; backend model iski value
+          Pair ÷ 24 ke hisaab se calculate karta hai.
+        </li>
+      </ul>
+    </div>
+  </div>
+</main>
+ 
+
+);
+}
