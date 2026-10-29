@@ -2,13 +2,13 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import axios from "axios";
 
 import {
-MdCloudUpload,
-MdCheckCircle,
-MdError,
-MdRefresh,
-MdKeyboardArrowUp,
-MdKeyboardArrowDown,
-MdSearch,
+  MdCloudUpload,
+  MdCheckCircle,
+  MdError,
+  MdRefresh,
+  MdKeyboardArrowUp,
+  MdKeyboardArrowDown,
+  MdSearch,
 } from "react-icons/md";
 
 // ======================================================
@@ -16,7 +16,7 @@ MdSearch,
 // ======================================================
 
 const API_BASE_URL =
-"https://mosach-erp-server.onrender.com/api/production-report";
+  "https://mosach-erp-server.onrender.com/api/production-report";
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
@@ -26,131 +26,139 @@ const MAX_FILE_SIZE = 10 * 1024 * 1024;
 // ======================================================
 
 const columns = [
-["jobcard", "Job Card"],
-["sku", "SKU"],
-["reportdate", "Report Date"],
-["article", "Article"],
-["colour", "Colour"],
-["size", "Size"],
-["pair", "Pair"],
-["packing", "Packing"],
-["carton", "Carton"],
-["cuttingreceiveddate", "Cutting Received Date"],
-["cuttingcontractor", "Cutting Contractor"],
-["uppercontractor", "Upper Contractor"],
-["upperissuedate", "Upper Issue Date"],
-["upperreceiveddate", "Upper Received Date"],
-["upperreceivedpair", "Upper Received Pair"],
-["upperinsolecontractor", "Upper/Insole Contractor"],
-["upperinsoleissueddate", "Upper/Insole Issued Date"],
-["upperstorereceiveddate", "Upper Store Received Date"],
-["upperstorepairqty", "Upper Store Pair Qty"],
-["upperstorestatus", "Status"],
-["machineno", "Machine No."],
-["machineissuedate", "Machine Issue Date"],
-["machinepairqty", "Machine Pair Qty"],
-["firstpair", "1st Pair"],
-["secondpair", "2nd Pair"],
-["rejection", "Rejection"],
-["totalpair", "Total Pair"],
+  ["upperstorestatus", "Status"],
+  ["jobcard", "Job Card"],
+  ["sku", "SKU"],
+  ["reportdate", "Report Date"],
+  // ["article", "Article"],
+  // ["colour", "Colour"],
+  // ["size", "Size"],
+  ["pair", "Pair"],
+  // ["packing", "Packing"],
+  ["carton", "Carton"],
+  ["cuttingreceiveddate", "Cutting Received Date"],
+  ["cuttingcontractor", "Cutting Contractor"],
+  ["uppercontractor", "Upper Contractor"],
+  ["upperissuedate", "Upper Issue Date"],
+  ["upperreceiveddate", "Upper Received Date"],
+  ["upperreceivedpair", "Upper Received Pair"],
+  ["upperinsolecontractor", "Upper/Insole Contractor"],
+  ["upperinsoleissueddate", "Upper/Insole Issued Date"],
+  ["upperstorereceiveddate", "Upper Store Received Date"],
+  ["upperstorepairqty", "Upper Store Pair Qty"],
+
+  // ["machineno", "Machine No."],
+  // ["machineissuedate", "Machine Issue Date"],
+  // ["machinepairqty", "Machine Pair Qty"],
+  // ["firstpair", "1st Pair"],
+  // ["secondpair", "2nd Pair"],
+  // ["rejection", "Rejection"],
+  // ["totalpair", "Total Pair"],
 ];
 
 // ======================================================
 // HELPER FUNCTIONS
 // ======================================================
 
-const displayValue = (value) => {
-if (value === null || value === undefined || value === "") {
-return "-";
-}
+const displayValue = (value, key = "") => {
+  if (value === null || value === undefined || value === "") {
+    return "-";
+  }
 
-if (value instanceof Date && !Number.isNaN(value.getTime())) {
-return value.toISOString().slice(0, 10);
-}
+  // Date columns ko DD-MM-YYYY mein display karein
+  if (key.toLowerCase().includes("date")) {
+    const dateString =
+      value instanceof Date
+        ? value.toISOString().slice(0, 10)
+        : String(value).slice(0, 10);
 
-if (typeof value === "string" && value.includes("T")) {
-return value.slice(0, 10);
-}
+    const parts = dateString.split("-");
 
-return String(value);
+    if (parts.length === 3 && parts[0].length === 4) {
+      return `${parts[2]}-${parts[1]}-${parts[0]}`;
+    }
+
+  }
+
+  return String(value);
 };
 
 const getDateValue = (value) => {
-if (!value) return "";
+  if (!value) return "";
 
-if (value instanceof Date && !Number.isNaN(value.getTime())) {
-return value.toISOString().slice(0, 10);
-}
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return value.toISOString().slice(0, 10);
+  }
 
-return String(value).slice(0, 10);
+  return String(value).slice(0, 10);
 };
 
 const getErrorMessage = (error) => {
-const responseData = error.response?.data;
+  const responseData = error.response?.data;
 
-if (responseData?.message) {
-const details = responseData.error;
+  if (responseData?.message) {
+    const details = responseData.error;
 
- 
-return details
-  ? `${responseData.message} ${details}`
-  : responseData.message;
- 
 
-}
+    return details
+      ? `${responseData.message} ${details}`
+      : responseData.message;
 
-if (error.code === "ECONNABORTED") {
-return "Request timeout ho gaya. Render server ko dobara try karein.";
-}
 
-if (!error.response) {
-return "Server se connection nahi ho raha. Internet aur Render API check karein.";
-}
+  }
 
-return error.message || "Unexpected error occurred.";
+  if (error.code === "ECONNABORTED") {
+    return "Request timeout ho gaya. Render server ko dobara try karein.";
+  }
+
+  if (!error.response) {
+    return "Server se connection nahi ho raha. Internet aur Render API check karein.";
+  }
+
+  return error.message || "Unexpected error occurred.";
 };
 
 const getReportRows = (responseData) => {
-if (Array.isArray(responseData)) {
-return responseData;
-}
+  if (Array.isArray(responseData)) {
+    return responseData;
+  }
 
-if (Array.isArray(responseData?.data)) {
-return responseData.data;
-}
+  if (Array.isArray(responseData?.data)) {
+    return responseData.data;
+  }
 
-if (Array.isArray(responseData?.rows)) {
-return responseData.rows;
-}
+  if (Array.isArray(responseData?.rows)) {
+    return responseData.rows;
+  }
 
-if (Array.isArray(responseData?.data?.rows)) {
-return responseData.data.rows;
-}
+  if (Array.isArray(responseData?.data?.rows)) {
+    return responseData.data.rows;
+  }
 
-if (Array.isArray(responseData?.data?.records)) {
-return responseData.data.records;
-}
+  if (Array.isArray(responseData?.data?.records)) {
+    return responseData.data.records;
+  }
 
-if (Array.isArray(responseData?.records)) {
-return responseData.records;
-}
+  if (Array.isArray(responseData?.records)) {
+    return responseData.records;
+  }
 
-return [];
+  return [];
 };
 
 const getUploadResult = (payload, fileName) => {
-const nestedData =
-payload?.data &&
-!Array.isArray(payload.data) &&
-typeof payload.data === "object"
-? payload.data
-: {};
+  const nestedData =
+    payload?.data &&
+      !Array.isArray(payload.data) &&
+      typeof payload.data === "object"
+      ? payload.data
+      : {};
 
-return {
-...payload,
-...nestedData,
-fileName,
-};
+  return {
+    ...payload,
+    ...nestedData,
+    fileName,
+  };
 };
 
 // ======================================================
@@ -158,324 +166,324 @@ fileName,
 // ======================================================
 
 export default function ProductionUpload() {
-const [file, setFile] = useState(null);
+  const [file, setFile] = useState(null);
 
-const [loading, setLoading] = useState(false);
-const [reportLoading, setReportLoading] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [reportLoading, setReportLoading] = useState(false);
 
-const [message, setMessage] = useState("");
-const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
 
-const [result, setResult] = useState(null);
-const [rows, setRows] = useState([]);
+  const [result, setResult] = useState(null);
+  const [rows, setRows] = useState([]);
 
-const [search, setSearch] = useState("");
-const [fromDate, setFromDate] = useState("");
-const [toDate, setToDate] = useState("");
+  const [search, setSearch] = useState("");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
 
-const [sortField, setSortField] = useState("jobcard");
-const [sortDirection, setSortDirection] = useState("asc");
+  const [sortField, setSortField] = useState("jobcard");
+  const [sortDirection, setSortDirection] = useState("asc");
 
-const [page, setPage] = useState(1);
-const [pageSize, setPageSize] = useState(10);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
-// ====================================================
-// LOAD PRODUCTION REPORT
-// ====================================================
+  // ====================================================
+  // LOAD PRODUCTION REPORT
+  // ====================================================
 
-const fetchReport = useCallback(async () => {
-setReportLoading(true);
-setError("");
+  const fetchReport = useCallback(async () => {
+    setReportLoading(true);
+    setError("");
 
- 
-try {
-  const response = await axios.get(API_BASE_URL, {
-    timeout: 120000,
-  });
 
-  if (response.data?.success === false) {
-    throw new Error(
-      response.data.message || "Production report load nahi hua."
-    );
-  }
+    try {
+      const response = await axios.get(API_BASE_URL, {
+        timeout: 120000,
+      });
 
-  const reportRows = getReportRows(response.data);
-
-  setRows(reportRows);
-} catch (err) {
-  setError(getErrorMessage(err));
-} finally {
-  setReportLoading(false);
-}
- 
-
-}, []);
-
-useEffect(() => {
-fetchReport();
-}, [fetchReport]);
-
-// ====================================================
-// SELECT EXCEL FILE
-// ====================================================
-
-const handleFile = (event) => {
-const selected = event.target.files?.[0] || null;
-
- 
-setFile(null);
-setError("");
-setMessage("");
-setResult(null);
-
-if (!selected) return;
-
-if (!/\.(xlsx|xls)$/i.test(selected.name)) {
-  setError("Sirf .xlsx ya .xls Excel file select karein.");
-  event.target.value = "";
-  return;
-}
-
-if (selected.size > MAX_FILE_SIZE) {
-  setError("Excel file ka size maximum 10 MB hona chahiye.");
-  event.target.value = "";
-  return;
-}
-
-setFile(selected);
- 
-
-};
-
-// ====================================================
-// UPLOAD EXCEL
-// ====================================================
-
-const upload = async (event) => {
-event.preventDefault();
-
- 
-if (!file) {
-  setError("Pehle Excel file select karein.");
-  return;
-}
-
-setLoading(true);
-setError("");
-setMessage("");
-setResult(null);
-
-try {
-  const formData = new FormData();
-  formData.append("file", file);
-
-  const response = await axios.post(
-    `${API_BASE_URL}/upload`,
-    formData,
-    {
-      timeout: 120000,
-    }
-  );
-
-  const payload = response.data;
-
-  if (!payload || payload.success !== true) {
-    throw new Error(
-      payload?.message || "Production Excel upload failed."
-    );
-  }
-
-  const uploadResult = getUploadResult(payload, file.name);
-
-  setResult(uploadResult);
-
-  setMessage(
-    payload.message ||
-      "Production Excel successfully upload ho gayi."
-  );
-
-  setFile(null);
-
-  const input = document.getElementById("production-file");
-
-  if (input) {
-    input.value = "";
-  }
-
-  await fetchReport();
-
-  setPage(1);
-} catch (err) {
-  setError(getErrorMessage(err));
-} finally {
-  setLoading(false);
-}
- 
-
-};
-
-// ====================================================
-// SEARCH, FILTER AND SORT
-// ====================================================
-
-const filteredRows = useMemo(() => {
-let list = [...rows];
-
- 
-const query = search.trim().toLowerCase();
-
-if (query) {
-  list = list.filter((row) =>
-    columns.some(([key]) =>
-      String(row[key] ?? "")
-        .toLowerCase()
-        .includes(query)
-    )
-  );
-}
-
-if (fromDate) {
-  list = list.filter(
-    (row) => getDateValue(row.reportdate) >= fromDate
-  );
-}
-
-if (toDate) {
-  list = list.filter(
-    (row) => getDateValue(row.reportdate) <= toDate
-  );
-}
-
-list.sort((a, b) => {
-  const av = a[sortField] ?? "";
-  const bv = b[sortField] ?? "";
-
-  const an = Number(av);
-  const bn = Number(bv);
-
-  const bothNumeric =
-    av !== "" &&
-    bv !== "" &&
-    Number.isFinite(an) &&
-    Number.isFinite(bn);
-
-  let comparison;
-
-  if (bothNumeric) {
-    comparison = an - bn;
-  } else {
-    comparison = String(av).localeCompare(
-      String(bv),
-      undefined,
-      {
-        numeric: true,
-        sensitivity: "base",
+      if (response.data?.success === false) {
+        throw new Error(
+          response.data.message || "Production report load nahi hua."
+        );
       }
-    );
-  }
 
-  return sortDirection === "asc" ? comparison : -comparison;
-});
+      const reportRows = getReportRows(response.data);
 
-return list;
- 
+      setRows(reportRows);
+    } catch (err) {
+      setError(getErrorMessage(err));
+    } finally {
+      setReportLoading(false);
+    }
 
-}, [
-rows,
-search,
-fromDate,
-toDate,
-sortField,
-sortDirection,
-]);
 
-useEffect(() => {
-setPage(1);
-}, [search, fromDate, toDate, pageSize]);
+  }, []);
 
-const totalPages = Math.max(
-1,
-Math.ceil(filteredRows.length / pageSize)
-);
+  useEffect(() => {
+    fetchReport();
+  }, [fetchReport]);
 
-const safePage = Math.min(page, totalPages);
+  // ====================================================
+  // SELECT EXCEL FILE
+  // ====================================================
 
-const pageRows = filteredRows.slice(
-(safePage - 1) * pageSize,
-safePage * pageSize
-);
+  const handleFile = (event) => {
+    const selected = event.target.files?.[0] || null;
 
-// ====================================================
-// RESET FILTERS
-// ====================================================
 
-const resetFilters = () => {
-setSearch("");
-setFromDate("");
-setToDate("");
-setSortField("jobcard");
-setSortDirection("asc");
-setPage(1);
-};
+    setFile(null);
+    setError("");
+    setMessage("");
+    setResult(null);
 
-const toggleSort = (field) => {
-if (sortField === field) {
-setSortDirection((direction) =>
-direction === "asc" ? "desc" : "asc"
-);
-} else {
-setSortField(field);
-setSortDirection("asc");
-}
-};
+    if (!selected) return;
 
-// ====================================================
-// UPLOAD SUMMARY
-// ====================================================
+    if (!/\.(xlsx|xls)$/i.test(selected.name)) {
+      setError("Sirf .xlsx ya .xls Excel file select karein.");
+      event.target.value = "";
+      return;
+    }
 
-const summary = [
-{
-title: "Rows Read",
-value:
-result?.totalExcelRows ??
-result?.totalRowsRead ??
-result?.totalRows ??
-result?.rowsRead ??
-0,
-className: "bg-slate-100 text-slate-800",
-},
-{
-title: "Inserted",
-value: result?.insertedRows ?? 0,
-className: "bg-emerald-50 text-emerald-800",
-},
-{
-title: "Updated",
-value: result?.updatedRows ?? 0,
-className: "bg-blue-50 text-blue-800",
-},
-{
-title: "Unchanged",
-value: result?.unchangedRows ?? 0,
-className: "bg-violet-50 text-violet-800",
-},
-{
-title: "Skipped",
-value:
-(result?.skippedRows ?? 0) +
-(result?.invalidJobCardRows ?? 0),
-className: "bg-amber-50 text-amber-800",
-},
-];
+    if (selected.size > MAX_FILE_SIZE) {
+      setError("Excel file ka size maximum 10 MB hona chahiye.");
+      event.target.value = "";
+      return;
+    }
 
-// ====================================================
-// RENDER
-// ====================================================
+    setFile(selected);
 
-return ( <main className="min-h-screen bg-slate-50 p-4 md:p-6"> <div className="mx-auto max-w-[1800px]">
-{/* HEADER */}
 
- 
+  };
+
+  // ====================================================
+  // UPLOAD EXCEL
+  // ====================================================
+
+  const upload = async (event) => {
+    event.preventDefault();
+
+
+    if (!file) {
+      setError("Pehle Excel file select karein.");
+      return;
+    }
+
+    setLoading(true);
+    setError("");
+    setMessage("");
+    setResult(null);
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const response = await axios.post(
+        `${API_BASE_URL}/upload`,
+        formData,
+        {
+          timeout: 120000,
+        }
+      );
+
+      const payload = response.data;
+
+      if (!payload || payload.success !== true) {
+        throw new Error(
+          payload?.message || "Production Excel upload failed."
+        );
+      }
+
+      const uploadResult = getUploadResult(payload, file.name);
+
+      setResult(uploadResult);
+
+      setMessage(
+        payload.message ||
+        "Production Excel successfully upload ho gayi."
+      );
+
+      setFile(null);
+
+      const input = document.getElementById("production-file");
+
+      if (input) {
+        input.value = "";
+      }
+
+      await fetchReport();
+
+      setPage(1);
+    } catch (err) {
+      setError(getErrorMessage(err));
+    } finally {
+      setLoading(false);
+    }
+
+
+  };
+
+  // ====================================================
+  // SEARCH, FILTER AND SORT
+  // ====================================================
+
+  const filteredRows = useMemo(() => {
+    let list = [...rows];
+
+
+    const query = search.trim().toLowerCase();
+
+    if (query) {
+      list = list.filter((row) =>
+        columns.some(([key]) =>
+          String(row[key] ?? "")
+            .toLowerCase()
+            .includes(query)
+        )
+      );
+    }
+
+    if (fromDate) {
+      list = list.filter(
+        (row) => getDateValue(row.reportdate) >= fromDate
+      );
+    }
+
+    if (toDate) {
+      list = list.filter(
+        (row) => getDateValue(row.reportdate) <= toDate
+      );
+    }
+
+    list.sort((a, b) => {
+      const av = a[sortField] ?? "";
+      const bv = b[sortField] ?? "";
+
+      const an = Number(av);
+      const bn = Number(bv);
+
+      const bothNumeric =
+        av !== "" &&
+        bv !== "" &&
+        Number.isFinite(an) &&
+        Number.isFinite(bn);
+
+      let comparison;
+
+      if (bothNumeric) {
+        comparison = an - bn;
+      } else {
+        comparison = String(av).localeCompare(
+          String(bv),
+          undefined,
+          {
+            numeric: true,
+            sensitivity: "base",
+          }
+        );
+      }
+
+      return sortDirection === "asc" ? comparison : -comparison;
+    });
+
+    return list;
+
+
+  }, [
+    rows,
+    search,
+    fromDate,
+    toDate,
+    sortField,
+    sortDirection,
+  ]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [search, fromDate, toDate, pageSize]);
+
+  const totalPages = Math.max(
+    1,
+    Math.ceil(filteredRows.length / pageSize)
+  );
+
+  const safePage = Math.min(page, totalPages);
+
+  const pageRows = filteredRows.slice(
+    (safePage - 1) * pageSize,
+    safePage * pageSize
+  );
+
+  // ====================================================
+  // RESET FILTERS
+  // ====================================================
+
+  const resetFilters = () => {
+    setSearch("");
+    setFromDate("");
+    setToDate("");
+    setSortField("jobcard");
+    setSortDirection("asc");
+    setPage(1);
+  };
+
+  const toggleSort = (field) => {
+    if (sortField === field) {
+      setSortDirection((direction) =>
+        direction === "asc" ? "desc" : "asc"
+      );
+    } else {
+      setSortField(field);
+      setSortDirection("asc");
+    }
+  };
+
+  // ====================================================
+  // UPLOAD SUMMARY
+  // ====================================================
+
+  const summary = [
+    {
+      title: "Rows Read",
+      value:
+        result?.totalExcelRows ??
+        result?.totalRowsRead ??
+        result?.totalRows ??
+        result?.rowsRead ??
+        0,
+      className: "bg-slate-100 text-slate-800",
+    },
+    {
+      title: "Inserted",
+      value: result?.insertedRows ?? 0,
+      className: "bg-emerald-50 text-emerald-800",
+    },
+    {
+      title: "Updated",
+      value: result?.updatedRows ?? 0,
+      className: "bg-blue-50 text-blue-800",
+    },
+    {
+      title: "Unchanged",
+      value: result?.unchangedRows ?? 0,
+      className: "bg-violet-50 text-violet-800",
+    },
+    {
+      title: "Skipped",
+      value:
+        (result?.skippedRows ?? 0) +
+        (result?.invalidJobCardRows ?? 0),
+      className: "bg-amber-50 text-amber-800",
+    },
+  ];
+
+  // ====================================================
+  // RENDER
+  // ====================================================
+
+  return (<main className="min-h-screen bg-slate-50 p-4 md:p-6"> <div className="mx-auto max-w-[1800px]">
+    {/* HEADER */}
+
+
     <header className="mb-6">
       <h1 className="text-2xl font-bold text-slate-800">
         Production Excel Upload
@@ -666,16 +674,27 @@ return ( <main className="min-h-screen bg-slate-50 p-4 md:p-6"> <div className="
 
       {/* TABLE */}
 
-      <div className="w-full overflow-auto">
-        <table className="min-w-max border-collapse text-left text-sm">
+      <div className="w-full overflow-auto relative">
+        <table className="min-w-max border-separate border-spacing-0 text-left text-sm">
           <thead className="bg-slate-800 text-white">
             <tr>
-              <th className="px-4 py-3">#</th>
+              {/* # COLUMN */}
+              <th className="md:sticky md:left-0 md:z-40 min-w-[55px] bg-slate-800 px-4 py-3">
+                #
+              </th>
+
 
               {columns.map(([key, label]) => (
                 <th
                   key={key}
-                  className="whitespace-nowrap px-4 py-3"
+                  className={`whitespace-nowrap px-4 py-3 ${key === "upperstorestatus"
+                      ? "md:sticky md:left-[55px] md:z-30 min-w-[80px] bg-slate-800"
+                      : key === "jobcard"
+                        ? "md:sticky md:left-[135px] md:z-30 min-w-[130px] bg-slate-800"
+                        : key === "sku"
+                          ? "md:sticky md:left-[265px] md:z-30 min-w-[130px] bg-slate-800"
+                          : ""
+                    }`}
                 >
                   <button
                     type="button"
@@ -693,8 +712,11 @@ return ( <main className="min-h-screen bg-slate-50 p-4 md:p-6"> <div className="
                   </button>
                 </th>
               ))}
+
+
             </tr>
           </thead>
+
 
           <tbody>
             {pageRows.length > 0 ? (
@@ -704,43 +726,77 @@ return ( <main className="min-h-screen bg-slate-50 p-4 md:p-6"> <div className="
                     row.productionreportid ??
                     `${row.jobcard ?? "job"}-${row.sku ?? "sku"}-${index}`
                   }
-                  className={`border-b border-slate-200 transition hover:bg-orange-50 ${
-                    index % 2 ? "bg-slate-50" : "bg-white"
-                  }`}
+                  className={`border-b border-slate-200 transition ${index % 2 ? "bg-slate-50" : "bg-white"
+                    } hover:bg-orange-50`}
                 >
-                  <td className="px-4 py-3 text-slate-500">
+                  {/* # COLUMN */}
+                  <td
+                    className={`md:sticky md:left-0 md:z-20 min-w-[55px] px-4 py-3 text-slate-500 ${index % 2 ? "bg-slate-50" : "bg-white"
+                      }`}
+                  >
                     {(safePage - 1) * pageSize + index + 1}
                   </td>
+
 
                   {columns.map(([key]) => (
                     <td
                       key={key}
-                      className={`whitespace-nowrap px-4 py-3 ${
-                        key === "jobcard"
-                          ? "font-semibold text-orange-700"
-                          : "text-slate-700"
-                      }`}
+                      className={`whitespace-nowrap px-4 py-3 ${key === "upperstorestatus"
+                          ? `md:sticky md:left-[55px] md:z-20 min-w-[80px] text-center ${index % 2 ? "bg-slate-50" : "bg-white"
+                          }`
+                          : key === "jobcard"
+                            ? `md:sticky md:left-[135px] md:z-20 min-w-[130px] font-semibold text-orange-700 ${index % 2 ? "bg-slate-50" : "bg-white"
+                            }`
+                            : key === "sku"
+                              ? `md:sticky md:left-[265px] md:z-20 min-w-[130px] text-slate-700 ${index % 2 ? "bg-slate-50" : "bg-white"
+                              }`
+                              : key === "jobcard"
+                                ? "font-semibold text-orange-700"
+                                : "text-slate-700"
+                        }`}
                     >
-                      {displayValue(row[key])}
+                      {/* STATUS ICON */}
+                      {key === "upperstorestatus" ? (
+                        Number(row[key]) === 1 ? (
+                          <MdCheckCircle
+                            size={22}
+                            className="mx-auto text-green-600"
+                            title="Completed"
+                          />
+                        ) : (
+                          <span className="text-slate-400">-</span>
+                        )
+                      ) : key === "carton" &&
+                        row[key] !== null &&
+                        row[key] !== undefined &&
+                        row[key] !== "" ? (
+                        /* CARTON DECIMAL REMOVE */
+                        Math.round(Number(row[key]))
+                      ) : (
+                        /* DATE FORMAT DD-MM-YYYY */
+                        displayValue(row[key], key)
+                      )}
                     </td>
                   ))}
                 </tr>
               ))
-            ) : (
-              <tr>
-                <td
-                  colSpan={columns.length + 1}
-                  className="px-4 py-12 text-center text-slate-500"
-                >
-                  {reportLoading
-                    ? "Loading production records..."
-                    : error
-                      ? "Records load nahi ho sake. Upar error check karein."
-                      : "No records found."}
-                </td>
-              </tr>
+
+
+            ) : (<tr>
+              <td
+                colSpan={columns.length + 1}
+                className="px-4 py-12 text-center text-slate-500"
+              >
+                {reportLoading
+                  ? "Loading production records..."
+                  : error
+                    ? "Records load nahi ho sake. Upar error check karein."
+                    : "No records found."} </td> </tr>
             )}
+
           </tbody>
+
+
         </table>
       </div>
 
@@ -767,9 +823,9 @@ return ( <main className="min-h-screen bg-slate-50 p-4 md:p-6"> <div className="
           <span>
             {filteredRows.length
               ? `${(safePage - 1) * pageSize + 1}-${Math.min(
-                  safePage * pageSize,
-                  filteredRows.length
-                )} of ${filteredRows.length}`
+                safePage * pageSize,
+                filteredRows.length
+              )} of ${filteredRows.length}`
               : "0 records"}
           </span>
         </div>
@@ -837,8 +893,8 @@ return ( <main className="min-h-screen bg-slate-50 p-4 md:p-6"> <div className="
       </ul>
     </div>
   </div>
-</main>
- 
+  </main>
 
-);
+
+  );
 }
