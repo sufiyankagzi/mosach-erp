@@ -54,7 +54,7 @@ const STICKY_COLUMN_WIDTHS = {
   upperstorestatus: 65,
   reportdate: 105,
   jobcard: 110,
-  sku: 180,
+  sku: 240,
   pair: 75,
   carton: 75,
 };
