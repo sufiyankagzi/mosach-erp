@@ -1,6 +1,6 @@
-
 import { useCallback, useEffect, useMemo, useState } from "react";
 import axios from "axios";
+
 import {
   MdCheckCircle,
   MdError,
@@ -10,29 +10,79 @@ import {
   MdSearch,
 } from "react-icons/md";
 
+// ======================================================
+// API CONFIGURATION
+// ======================================================
+
 const API_BASE_URL =
   "https://mosach-erp-server.onrender.com/api/production-report";
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 
+// ======================================================
+// DATABASE FIELD MAPPING
+// ======================================================
+
 const columns = [
   ["upperstorestatus", "Status"],
+  ["reportdate", "Report Date"],
   ["jobcard", "Job Card"],
   ["sku", "SKU"],
-  ["reportdate", "Report Date"],
   ["pair", "Pair"],
   ["carton", "Carton"],
-  ["cuttingreceiveddate", "Cutting Received Date"],
+  ["cuttingreceiveddate", "Cutting Rec. Date"],
   ["cuttingcontractor", "Cutting Contractor"],
   ["uppercontractor", "Upper Contractor"],
-  ["upperissuedate", "Upper Issue Date"],
-  ["upperreceiveddate", "Upper Received Date"],
-  ["upperreceivedpair", "Upper Received Pair"],
+  ["upperissuedate", "Upper Iss. Date"],
+  ["upperreceiveddate", "Upper Rec. Date"],
+  ["upperreceivedpair", "Upper Rec. Pair"],
+  ["upperreceivedctn", "Upper Rec. CTN"],
   ["upperinsolecontractor", "Upper/Insole Contractor"],
-  ["upperinsoleissueddate", "Upper/Insole Issued Date"],
-  ["upperstorereceiveddate", "Upper Store Received Date"],
+  ["upperinsoleissueddate", "Upper/Insole Iss. Date"],
+  ["upperstorereceiveddate", "Upper Store Rec. Date"],
   ["upperstorepairqty", "Upper Store Pair Qty"],
+  ["upperstorectn", "Upper Store CTN"],
 ];
+
+// ======================================================
+// STICKY COLUMN WIDTH CONFIGURATION
+// ======================================================
+
+const INDEX_COLUMN_WIDTH = 48;
+
+const STICKY_COLUMN_WIDTHS = {
+  upperstorestatus: 65,
+  reportdate: 105,
+  jobcard: 110,
+  sku: 180,
+  pair: 75,
+  carton: 75,
+};
+
+// Automatically calculate left positions.
+
+const stickyColumns = (() => {
+  let currentLeft = INDEX_COLUMN_WIDTH;
+
+  return Object.fromEntries(
+    Object.entries(STICKY_COLUMN_WIDTHS).map(
+      ([key, width]) => {
+        const config = {
+          left: currentLeft,
+          width,
+        };
+
+        currentLeft += width;
+
+        return [key, config];
+      }
+    )
+  );
+})();
+
+// ======================================================
+// REPORT ROWS
+// ======================================================
 
 const getReportRows = (data) => {
   if (Array.isArray(data)) return data;
@@ -45,10 +95,15 @@ const getReportRows = (data) => {
   return [];
 };
 
+// ======================================================
+// DATE FORMAT
+// ======================================================
+
 const getDateValue = (value) => {
   if (!value) return "";
 
   const text = String(value).slice(0, 10);
+
   const match = text.match(/^(\d{4})-(\d{2})-(\d{2})$/);
 
   if (match) return text;
@@ -64,8 +119,64 @@ const getDateValue = (value) => {
   ].join("-");
 };
 
+// ======================================================
+// CTN CONVERSION WITH ROUNDING
+// ======================================================
+
+const getRoundedCTN = (pairQty, packing) => {
+  if (
+    pairQty === null ||
+    pairQty === undefined ||
+    pairQty === ""
+  ) {
+    return "";
+  }
+
+  const pairs = Number(pairQty);
+
+  const packingQty = Number.parseFloat(packing) || 24;
+
+  if (!Number.isFinite(pairs) || packingQty <= 0) {
+    return "";
+  }
+
+  return Math.round(pairs / packingQty);
+};
+
+// ======================================================
+// GET COLUMN VALUE
+// ======================================================
+
+const getColumnValue = (row, key) => {
+  // Upper Received CTN
+  if (key === "upperreceivedctn") {
+    return getRoundedCTN(
+      row?.upperreceivedpair,
+      row?.packing
+    );
+  }
+
+  // Upper Store CTN
+  if (key === "upperstorectn") {
+    return getRoundedCTN(
+      row?.upperstorepairqty,
+      row?.packing
+    );
+  }
+
+  return row?.[key] ?? "";
+};
+
+// ======================================================
+// DISPLAY VALUE
+// ======================================================
+
 const displayValue = (value, key = "") => {
-  if (value === null || value === undefined || value === "") {
+  if (
+    value === null ||
+    value === undefined ||
+    value === ""
+  ) {
     return "-";
   }
 
@@ -80,18 +191,58 @@ const displayValue = (value, key = "") => {
 
   if (key === "carton") {
     const number = Number(value);
-    return Number.isFinite(number) ? Math.round(number) : value;
+
+    return Number.isFinite(number)
+      ? Math.round(number)
+      : value;
   }
 
   return String(value);
 };
 
+// ======================================================
+// STICKY COLUMN INLINE STYLE
+// ======================================================
+
+const getStickyStyle = (key) => {
+  const config = stickyColumns[key];
+
+  if (!config) return undefined;
+
+  return {
+    "--sticky-left": `${config.left}px`,
+
+    width: `${config.width}px`,
+    minWidth: `${config.width}px`,
+    maxWidth: `${config.width}px`,
+
+    boxSizing: "border-box",
+  };
+};
+
+// ======================================================
+// INDEX COLUMN STYLE
+// ======================================================
+
+const getIndexStyle = () => ({
+  width: `${INDEX_COLUMN_WIDTH}px`,
+  minWidth: `${INDEX_COLUMN_WIDTH}px`,
+  maxWidth: `${INDEX_COLUMN_WIDTH}px`,
+  boxSizing: "border-box",
+});
+
+// ======================================================
+// MAIN COMPONENT
+// ======================================================
+
 export default function ProductionReport() {
   const [rows, setRows] = useState([]);
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   const [search, setSearch] = useState("");
+
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
 
@@ -101,9 +252,10 @@ export default function ProductionReport() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
-  // =====================================================
-  // LOAD REPORT DATA FROM API
-  // =====================================================
+  // ====================================================
+  // LOAD REPORT DATA
+  // ====================================================
+
   const fetchReport = useCallback(async () => {
     setLoading(true);
     setError("");
@@ -117,7 +269,8 @@ export default function ProductionReport() {
 
       if (responseData?.success === false) {
         throw new Error(
-          responseData.message || "Production report load nahi hui."
+          responseData.message ||
+            "Production report load nahi hui."
         );
       }
 
@@ -148,24 +301,27 @@ export default function ProductionReport() {
     fetchReport();
   }, [fetchReport]);
 
-  // =====================================================
+  // ====================================================
   // SEARCH, DATE FILTER AND SORT
-  // =====================================================
+  // ====================================================
+
   const filteredRows = useMemo(() => {
     let list = [...rows];
 
     const query = search.trim().toLowerCase();
 
+    // SEARCH
     if (query) {
       list = list.filter((row) =>
         columns.some(([key]) =>
-          String(row?.[key] ?? "")
+          String(getColumnValue(row, key))
             .toLowerCase()
             .includes(query)
         )
       );
     }
 
+    // FROM DATE
     if (fromDate) {
       list = list.filter((row) => {
         const date = getDateValue(row.reportdate);
@@ -173,6 +329,7 @@ export default function ProductionReport() {
       });
     }
 
+    // TO DATE
     if (toDate) {
       list = list.filter((row) => {
         const date = getDateValue(row.reportdate);
@@ -180,9 +337,10 @@ export default function ProductionReport() {
       });
     }
 
+    // SORT
     list.sort((a, b) => {
-      const av = a?.[sortField] ?? "";
-      const bv = b?.[sortField] ?? "";
+      const av = getColumnValue(a, sortField);
+      const bv = getColumnValue(b, sortField);
 
       let comparison;
 
@@ -194,13 +352,19 @@ export default function ProductionReport() {
       ) {
         comparison = Number(av) - Number(bv);
       } else {
-        comparison = String(av).localeCompare(String(bv), undefined, {
-          numeric: true,
-          sensitivity: "base",
-        });
+        comparison = String(av).localeCompare(
+          String(bv),
+          undefined,
+          {
+            numeric: true,
+            sensitivity: "base",
+          }
+        );
       }
 
-      return sortDirection === "asc" ? comparison : -comparison;
+      return sortDirection === "asc"
+        ? comparison
+        : -comparison;
     });
 
     return list;
@@ -213,9 +377,17 @@ export default function ProductionReport() {
     sortDirection,
   ]);
 
+  // ====================================================
+  // RESET PAGE ON FILTER CHANGE
+  // ====================================================
+
   useEffect(() => {
     setPage(1);
   }, [search, fromDate, toDate, pageSize]);
+
+  // ====================================================
+  // PAGINATION
+  // ====================================================
 
   const totalPages = Math.max(
     1,
@@ -228,6 +400,10 @@ export default function ProductionReport() {
     (safePage - 1) * pageSize,
     safePage * pageSize
   );
+
+  // ====================================================
+  // SORT HANDLER
+  // ====================================================
 
   const toggleSort = (field) => {
     if (sortField === field) {
@@ -242,23 +418,68 @@ export default function ProductionReport() {
     setPage(1);
   };
 
+  // ====================================================
+  // RESET FILTERS
+  // ====================================================
+
   const resetFilters = () => {
     setSearch("");
+
     setFromDate("");
     setToDate("");
+
     setSortField("jobcard");
     setSortDirection("asc");
+
     setPage(1);
   };
 
-  // =====================================================
-  // GRID
-  // =====================================================
+  // ====================================================
+  // RENDER
+  // ====================================================
+
   return (
     <main className="min-h-screen bg-slate-50 p-4 md:p-6">
+
+      {/* RESPONSIVE STICKY CSS */}
+
+      <style>{`
+        @media (min-width: 768px) {
+
+          .production-report-grid .production-index-cell {
+            position: sticky;
+            left: 0;
+          }
+
+          .production-report-grid thead .production-index-cell {
+            z-index: 70;
+          }
+
+          .production-report-grid tbody .production-index-cell {
+            z-index: 40;
+          }
+
+          .production-report-grid .production-sticky-cell {
+            position: sticky;
+            left: var(--sticky-left);
+          }
+
+          .production-report-grid thead .production-sticky-cell {
+            z-index: 50;
+          }
+
+          .production-report-grid tbody .production-sticky-cell {
+            z-index: 20;
+          }
+        }
+      `}</style>
+
       <div className="mx-auto max-w-[1800px]">
+
         {/* HEADER */}
+
         <header className="mb-6 flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
+
           <div>
             <h1 className="text-2xl font-bold text-slate-800">
               Production Report
@@ -279,12 +500,16 @@ export default function ProductionReport() {
               size={19}
               className={loading ? "animate-spin" : ""}
             />
+
             {loading ? "Loading..." : "Refresh"}
           </button>
+
         </header>
 
         {/* FILTERS */}
+
         <section className="mb-5 grid grid-cols-1 gap-3 rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:grid-cols-2 lg:grid-cols-4">
+
           <div className="relative">
             <MdSearch
               size={20}
@@ -301,6 +526,7 @@ export default function ProductionReport() {
 
           <label className="text-xs font-semibold text-slate-600">
             From Date
+
             <input
               type="date"
               value={fromDate}
@@ -312,6 +538,7 @@ export default function ProductionReport() {
 
           <label className="text-xs font-semibold text-slate-600">
             To Date
+
             <input
               type="date"
               value={toDate}
@@ -329,10 +556,13 @@ export default function ProductionReport() {
             <MdRefresh size={19} />
             Reset Filters
           </button>
+
         </section>
 
         {/* SUMMARY */}
+
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+
           <span className="rounded-lg bg-orange-50 px-4 py-2 text-sm font-semibold text-orange-700">
             {filteredRows.length} records
           </span>
@@ -340,62 +570,132 @@ export default function ProductionReport() {
           <span className="text-sm text-slate-500">
             Page {safePage} of {totalPages}
           </span>
+
         </div>
 
         {/* ERROR */}
+
         {error && (
           <div className="mb-4 flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
             <MdError size={20} className="shrink-0" />
-            <span className="break-words">{error}</span>
+
+            <span className="break-words">
+              {error}
+            </span>
           </div>
         )}
 
+        {/* ================================================= */}
         {/* TABLE GRID */}
+        {/* ================================================= */}
+
         <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-          <div className="relative w-full max-w-full overflow-auto overscroll-x-contain">
-            <table className="min-w-max border-separate border-spacing-0 text-left text-sm">
+
+          <div className="production-report-grid relative w-full max-w-full overflow-auto overscroll-x-contain">
+
+            <table
+              className="border-separate border-spacing-0 text-left text-sm"
+              style={{
+                width: "max-content",
+                minWidth: "100%",
+                tableLayout: "fixed",
+              }}
+            >
+
+              {/* COLUMN WIDTHS */}
+
+              <colgroup>
+
+                <col
+                  style={{
+                    width: `${INDEX_COLUMN_WIDTH}px`,
+                  }}
+                />
+
+                {columns.map(([key]) => (
+                  <col
+                    key={key}
+                    style={{
+                      width: `${STICKY_COLUMN_WIDTHS[key] ?? 170}px`,
+                    }}
+                  />
+                ))}
+
+              </colgroup>
+
+              {/* TABLE HEADER */}
+
               <thead>
+
                 <tr>
-                  <th className="sticky left-0 top-0 z-50 min-w-[55px] border-b border-slate-600 bg-slate-800 px-4 py-3 text-white">
+
+                  {/* # COLUMN */}
+
+                  <th
+                    style={getIndexStyle()}
+                    className="production-index-cell sticky top-0 box-border overflow-hidden border-b border-slate-600 bg-slate-800 px-2 py-2 text-white"
+                  >
                     #
                   </th>
 
                   {columns.map(([key, label]) => {
-                    const stickyClass =
-                      key === "upperstorestatus"
-                        ? "md:sticky md:left-[55px] md:z-40 min-w-[80px] bg-slate-800"
-                        : key === "jobcard"
-                          ? "md:sticky md:left-[135px] md:z-40 min-w-[130px] bg-slate-800"
-                          : key === "sku"
-                            ? "md:sticky md:left-[265px] md:z-40 min-w-[130px] bg-slate-800"
-                            : "";
+
+                    const config = stickyColumns[key];
 
                     return (
                       <th
                         key={key}
-                        className={`sticky top-0 whitespace-nowrap border-b border-slate-600 bg-slate-800 px-4 py-3 text-white ${stickyClass}`}
+                        style={getStickyStyle(key)}
+                        className={`
+                          sticky top-0
+                          box-border
+                          overflow-hidden
+                          whitespace-nowrap
+                          border-b border-slate-600
+                          bg-slate-800
+                          px-2 py-2
+                          text-white
+                          ${config ? "production-sticky-cell" : ""}
+                        `}
                       >
+
                         <button
                           type="button"
                           onClick={() => toggleSort(key)}
-                          className="flex items-center gap-1 font-semibold hover:text-orange-300"
+                          className="flex max-w-full items-center gap-1 overflow-hidden whitespace-nowrap font-semibold hover:text-orange-300"
                         >
-                          {label}
+
+                          <span className="overflow-hidden text-ellipsis">
+                            {label}
+                          </span>
 
                           {sortField === key &&
                             (sortDirection === "asc" ? (
-                              <MdKeyboardArrowUp size={18} />
+                              <MdKeyboardArrowUp
+                                size={18}
+                                className="shrink-0"
+                              />
                             ) : (
-                              <MdKeyboardArrowDown size={18} />
+                              <MdKeyboardArrowDown
+                                size={18}
+                                className="shrink-0"
+                              />
                             ))}
+
                         </button>
+
                       </th>
                     );
                   })}
+
                 </tr>
+
               </thead>
 
+              {/* TABLE BODY */}
+
               <tbody>
+
                 {loading ? (
                   <tr>
                     <td
@@ -403,18 +703,27 @@ export default function ProductionReport() {
                       className="px-4 py-12 text-center text-slate-500"
                     >
                       <span className="inline-flex items-center gap-2">
-                        <MdRefresh size={20} className="animate-spin" />
+                        <MdRefresh
+                          size={20}
+                          className="animate-spin"
+                        />
+
                         Loading production records...
                       </span>
                     </td>
                   </tr>
+
                 ) : pageRows.length > 0 ? (
+
                   pageRows.map((row, index) => {
+
                     const rowNumber =
                       (safePage - 1) * pageSize + index + 1;
 
                     const stripe =
-                      index % 2 ? "bg-slate-50" : "bg-white";
+                      index % 2
+                        ? "bg-slate-50"
+                        : "bg-white";
 
                     return (
                       <tr
@@ -422,30 +731,56 @@ export default function ProductionReport() {
                           row.productionreportid ??
                           `${row.jobcard ?? "job"}-${row.sku ?? "sku"}-${index}`
                         }
-                        className="transition hover:bg-orange-50"
+                        className="group transition hover:bg-orange-50"
                       >
+
+                        {/* # COLUMN */}
+
                         <td
-                          className={`sticky left-0 z-20 min-w-[55px] border-b border-slate-200 px-4 py-3 text-slate-500 ${stripe}`}
+                          style={getIndexStyle()}
+                          className={`
+                            production-index-cell
+                            box-border
+                            overflow-hidden
+                            border-b border-slate-200
+                            px-2 py-2
+                            text-slate-500
+                            ${stripe}
+                            group-hover:bg-orange-50
+                          `}
                         >
                           {rowNumber}
                         </td>
 
+                        {/* DATA COLUMNS */}
+
                         {columns.map(([key]) => {
-                          const stickyClass =
-                            key === "upperstorestatus"
-                              ? `md:sticky md:left-[55px] md:z-20 min-w-[80px] text-center ${stripe}`
-                              : key === "jobcard"
-                                ? `md:sticky md:left-[135px] md:z-20 min-w-[130px] font-semibold text-orange-700 ${stripe}`
-                                : key === "sku"
-                                  ? `md:sticky md:left-[265px] md:z-20 min-w-[130px] text-slate-700 ${stripe}`
-                                  : "text-slate-700";
+
+                          const config = stickyColumns[key];
+
+                          const value = getColumnValue(row, key);
 
                           return (
                             <td
                               key={key}
-                              className={`whitespace-nowrap border-b border-slate-200 px-4 py-3 ${stickyClass}`}
+                              style={getStickyStyle(key)}
+                              className={`
+                                box-border
+                                overflow-hidden
+                                text-ellipsis
+                                whitespace-nowrap
+                                border-b border-slate-200
+                                px-2 py-2
+                                text-slate-700
+                                ${config ? "production-sticky-cell" : ""}
+                                ${config ? stripe : ""}
+                                group-hover:bg-orange-50
+                              `}
+                              title={String(value ?? "")}
                             >
+
                               {key === "upperstorestatus" ? (
+
                                 Number(row[key]) === 1 ? (
                                   <MdCheckCircle
                                     size={22}
@@ -457,16 +792,23 @@ export default function ProductionReport() {
                                     -
                                   </span>
                                 )
+
                               ) : (
-                                displayValue(row[key], key)
+
+                                displayValue(value, key)
+
                               )}
+
                             </td>
                           );
                         })}
+
                       </tr>
                     );
                   })
+
                 ) : (
+
                   <tr>
                     <td
                       colSpan={columns.length + 1}
@@ -477,14 +819,23 @@ export default function ProductionReport() {
                         : "No records found."}
                     </td>
                   </tr>
+
                 )}
+
               </tbody>
+
             </table>
+
           </div>
 
+          {/* ================================================= */}
           {/* PAGINATION */}
+          {/* ================================================= */}
+
           <div className="flex flex-col gap-3 border-t p-4 md:flex-row md:items-center md:justify-between">
+
             <div className="flex flex-wrap items-center gap-2 text-sm text-slate-600">
+
               <span>Rows per page</span>
 
               <select
@@ -510,9 +861,11 @@ export default function ProductionReport() {
                     )} of ${filteredRows.length}`
                   : "0 records"}
               </span>
+
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
+
               <button
                 type="button"
                 disabled={safePage <= 1}
@@ -526,7 +879,9 @@ export default function ProductionReport() {
                 type="button"
                 disabled={safePage <= 1}
                 onClick={() =>
-                  setPage((current) => Math.max(1, current - 1))
+                  setPage((current) =>
+                    Math.max(1, current - 1)
+                  )
                 }
                 className="rounded border px-3 py-2 disabled:opacity-40"
               >
@@ -558,11 +913,14 @@ export default function ProductionReport() {
               >
                 Last
               </button>
+
             </div>
+
           </div>
+
         </section>
+
       </div>
     </main>
   );
 }
-
