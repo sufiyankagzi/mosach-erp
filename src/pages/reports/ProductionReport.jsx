@@ -35,12 +35,12 @@ const columns = [
   ["uppercontractor", "Upper Contractor"],
   ["upperissuedate", "Upper Iss. Date"],
   ["upperreceiveddate", "Upper Rec. Date"],
-  ["upperreceivedpair", "Upper Rec. Pair"],
+  // ["upperreceivedpair", "Upper Rec. Pair"],
   ["upperreceivedctn", "Upper Rec. CTN"],
   ["upperinsolecontractor", "Upper/Insole Contractor"],
   ["upperinsoleissueddate", "Upper/Insole Iss. Date"],
   ["upperstorereceiveddate", "Upper Store Rec. Date"],
-  ["upperstorepairqty", "Upper Store Pair Qty"],
+  // ["upperstorepairqty", "Upper Store Pair Qty"],
   ["upperstorectn", "Upper Store CTN"],
 ];
 
