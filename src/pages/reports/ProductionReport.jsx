@@ -38,7 +38,7 @@ const columns = [
   // ["upperreceivedpair", "Upper Rec. Pair"],
   ["upperreceivedctn", "URC"],
   ["upperinsolecontractor", "Upper/Insole Stitch"],
-  ["upperinsoleissueddate", "U/UID"],
+  ["upperinsoleissueddate", "UISD"],
   ["upperstorereceiveddate", "USRD"],
   // ["upperstorepairqty", "Upper Store Pair Qty"],
   ["upperstorectn", "USC"],
