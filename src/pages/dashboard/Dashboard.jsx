@@ -1,11 +1,13 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import axios from "axios";
+
 import {
   MdRefresh,
   MdSearch,
   MdInventory2,
-  MdInventory,
-  MdAssessment,
+  MdCheckCircle,
+  MdPendingActions,
+  MdLayers,
 } from "react-icons/md";
 
 // ======================================================
@@ -16,78 +18,91 @@ const API_BASE_URL =
   "https://mosach-erp-server.onrender.com/api/production-report";
 
 // ======================================================
-// GET API ROWS
+// HELPER FUNCTIONS
 // ======================================================
 
-const getReportRows = (data) => {
+const toNumber = (value) => {
+  if (value === null || value === undefined || value === "") {
+    return 0;
+  }
+
+  const number = Number(value);
+
+  return Number.isFinite(number) ? number : 0;
+};
+
+const formatNumber = (value) => {
+  return Number(value || 0).toLocaleString("en-IN", {
+    maximumFractionDigits: 0,
+  });
+};
+
+const getPacking = (row) => {
+  const packing = toNumber(row.packing);
+
+  return packing > 0 ? packing : 24;
+};
+
+const getRowsFromResponse = (response) => {
+  const data = response?.data;
+
   if (Array.isArray(data)) return data;
   if (Array.isArray(data?.data)) return data.data;
   if (Array.isArray(data?.rows)) return data.rows;
   if (Array.isArray(data?.records)) return data.records;
-  if (Array.isArray(data?.data?.rows)) return data.data.rows;
-  if (Array.isArray(data?.data?.records)) return data.data.records;
 
   return [];
 };
 
 // ======================================================
-// NUMBER FORMAT
-// ======================================================
-
-const formatNumber = (value) => {
-  const number = Number(value) || 0;
-
-  return number.toLocaleString("en-IN", {
-    maximumFractionDigits: 0,
-  });
-};
-
-// ======================================================
-// DASHBOARD COMPONENT
+// MAIN DASHBOARD
 // ======================================================
 
 export default function Dashboard() {
   const [rows, setRows] = useState([]);
-  const [loading, setLoading] = useState(false);
+
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
 
   // ====================================================
-  // LOAD DATA
+  // INDEPENDENT PAGINATION STATES
   // ====================================================
 
-  const fetchDashboardData = useCallback(async () => {
-    setLoading(true);
-    setError("");
+  const [receivedPage, setReceivedPage] = useState(1);
+  const [pendingPage, setPendingPage] = useState(1);
 
+  const [receivedPageSize, setReceivedPageSize] = useState(10);
+  const [pendingPageSize, setPendingPageSize] = useState(10);
+
+  // ====================================================
+  // LOAD PRODUCTION REPORT DATA
+  // ====================================================
+
+  const fetchData = useCallback(async () => {
     try {
+      setLoading(true);
+      setError("");
+
       const response = await axios.get(API_BASE_URL, {
         timeout: 120000,
       });
 
-      const responseData = response.data;
+      const data = getRowsFromResponse(response);
 
-      if (responseData?.success === false) {
-        throw new Error(
-          responseData.message ||
-            "Dashboard data load nahi ho saka."
-        );
-      }
+      setRows(data);
 
-      setRows(getReportRows(responseData));
+      setReceivedPage(1);
+      setPendingPage(1);
     } catch (err) {
-      console.error(
-        "Dashboard API error:",
-        err.response?.data || err
-      );
+      console.error("Dashboard API Error:", err);
 
       setRows([]);
 
       setError(
         err.response?.data?.message ||
-          err.response?.data?.error ||
           err.message ||
-          "Dashboard data load nahi ho saka."
+          "Unable to load production report."
       );
     } finally {
       setLoading(false);
@@ -95,407 +110,731 @@ export default function Dashboard() {
   }, []);
 
   useEffect(() => {
-    fetchDashboardData();
-  }, [fetchDashboardData]);
+    fetchData();
+  }, [fetchData]);
 
   // ====================================================
-  // SKU WISE GROUPING
+  // SEARCH CHANGE - RESET BOTH PAGES
+  // ====================================================
+
+  useEffect(() => {
+    setReceivedPage(1);
+    setPendingPage(1);
+  }, [search]);
+
+  // ====================================================
+  // 1. UPPER STORE RECEIVED SUMMARY
+  //
+  // Condition: upperstorepairqty > 0
+  // Group by SKU
+  // Total Pair / Packing = Carton
   // ====================================================
 
   const skuSummary = useMemo(() => {
-    const grouped = rows.reduce((acc, row) => {
-      const sku =
-        String(row?.sku || "").trim() || "";
+    const grouped = {};
 
-      // Empty SKU skip
-      if (!sku) return acc;
+    rows.forEach((row) => {
+      const sku = String(row.sku || "").trim();
 
-      const upperStorePair =
-        Number(row?.upperstorepairqty) || 0;
+      if (!sku) return;
 
-      const packing =
-        Number.parseFloat(row?.packing) || 24;
+      const pair = toNumber(row.upperstorepairqty);
 
-      if (!acc[sku]) {
-        acc[sku] = {
+      // Only positive received pair records
+      if (pair <= 0) return;
+
+      if (!grouped[sku]) {
+        grouped[sku] = {
           sku,
-          totalUpperStorePair: 0,
-          packing,
           records: 0,
+          totalUpperStorePair: 0,
+          packing: getPacking(row),
         };
       }
 
-      // Same SKU ka Pair total
-      acc[sku].totalUpperStorePair += upperStorePair;
+      grouped[sku].records += 1;
 
-      // Valid packing update
-      if (packing > 0) {
-        acc[sku].packing = packing;
+      grouped[sku].totalUpperStorePair += pair;
+
+      // Use latest valid packing value encountered
+      if (toNumber(row.packing) > 0) {
+        grouped[sku].packing = toNumber(row.packing);
       }
-
-      acc[sku].records += 1;
-
-      return acc;
-    }, {});
+    });
 
     return Object.values(grouped)
       .map((item) => {
-        const totalUpperStoreCarton =
-          item.packing > 0
-            ? Math.round(
-                item.totalUpperStorePair / item.packing
-              )
-            : 0;
+        const totalUpperStoreCarton = Math.round(
+          item.totalUpperStorePair / item.packing
+        );
 
         return {
           ...item,
           totalUpperStoreCarton,
         };
       })
-
-      // ================================================
-      // IMPORTANT: 0 PAIR / 0 CARTON HIDE
-      // ================================================
-
       .filter(
         (item) =>
           item.totalUpperStorePair > 0 &&
           item.totalUpperStoreCarton > 0
       )
-
-      // SKU SORT
-      .sort((a, b) =>
-        a.sku.localeCompare(b.sku, undefined, {
-          numeric: true,
-          sensitivity: "base",
-        })
-      );
+      .sort((a, b) => a.sku.localeCompare(b.sku));
   }, [rows]);
 
   // ====================================================
-  // SEARCH FILTER
+  // FIRST SUMMARY SEARCH FILTER
   // ====================================================
 
-  const filteredSummary = useMemo(() => {
-    const query = search.trim().toLowerCase();
+  const filteredSkuSummary = useMemo(() => {
+    const value = search.trim().toLowerCase();
 
-    if (!query) return skuSummary;
+    if (!value) return skuSummary;
 
     return skuSummary.filter((item) =>
-      item.sku.toLowerCase().includes(query)
+      item.sku.toLowerCase().includes(value)
     );
   }, [skuSummary, search]);
 
   // ====================================================
-  // DASHBOARD TOTALS
+  // FIRST SUMMARY TOTALS
   // ====================================================
 
-  const totalUpperStorePair = useMemo(() => {
-    return filteredSummary.reduce(
-      (total, item) =>
-        total + item.totalUpperStorePair,
+  const totalReceivedPair = useMemo(() => {
+    return filteredSkuSummary.reduce(
+      (total, item) => total + item.totalUpperStorePair,
       0
     );
-  }, [filteredSummary]);
+  }, [filteredSkuSummary]);
 
-  const totalUpperStoreCarton = useMemo(() => {
-    return filteredSummary.reduce(
-      (total, item) =>
-        total + item.totalUpperStoreCarton,
+  const totalReceivedCarton = useMemo(() => {
+    return filteredSkuSummary.reduce(
+      (total, item) => total + item.totalUpperStoreCarton,
       0
     );
-  }, [filteredSummary]);
+  }, [filteredSkuSummary]);
 
   // ====================================================
-  // RENDER
+  // 2. PENDING UPPER STORE SUMMARY
+  //
+  // Condition: upperstorepairqty = 0
+  // Group by SKU
+  // Sum original database carton field
+  // ====================================================
+
+  const zeroPairSummary = useMemo(() => {
+    const grouped = {};
+
+    rows.forEach((row) => {
+      const sku = String(row.sku || "").trim();
+
+      if (!sku) return;
+
+      const pairValue = row.upperstorepairqty;
+
+      // Ignore blank/null pair values
+      if (
+        pairValue === null ||
+        pairValue === undefined ||
+        String(pairValue).trim() === ""
+      ) {
+        return;
+      }
+
+      // Only exactly zero pair records
+      if (toNumber(pairValue) !== 0) return;
+
+      // Original database carton value
+      const carton = toNumber(row.carton);
+
+      if (!grouped[sku]) {
+        grouped[sku] = {
+          sku,
+          records: 0,
+          totalCarton: 0,
+        };
+      }
+
+      grouped[sku].records += 1;
+      grouped[sku].totalCarton += carton;
+    });
+
+    return Object.values(grouped)
+      .filter((item) => item.totalCarton > 0)
+      .sort((a, b) => a.sku.localeCompare(b.sku));
+  }, [rows]);
+
+  // ====================================================
+  // SECOND SUMMARY SEARCH FILTER
+  // ====================================================
+
+  const filteredZeroPairSummary = useMemo(() => {
+    const value = search.trim().toLowerCase();
+
+    if (!value) return zeroPairSummary;
+
+    return zeroPairSummary.filter((item) =>
+      item.sku.toLowerCase().includes(value)
+    );
+  }, [zeroPairSummary, search]);
+
+  // ====================================================
+  // SECOND SUMMARY TOTAL
+  // ====================================================
+
+  const zeroPairCartonTotal = useMemo(() => {
+    return filteredZeroPairSummary.reduce(
+      (total, item) => total + item.totalCarton,
+      0
+    );
+  }, [filteredZeroPairSummary]);
+
+  // ====================================================
+  // PAGINATION SAFETY
+  // ====================================================
+
+  useEffect(() => {
+    const totalPages = Math.max(
+      1,
+      Math.ceil(filteredSkuSummary.length / receivedPageSize)
+    );
+
+    if (receivedPage > totalPages) {
+      setReceivedPage(totalPages);
+    }
+  }, [filteredSkuSummary, receivedPage, receivedPageSize]);
+
+  useEffect(() => {
+    const totalPages = Math.max(
+      1,
+      Math.ceil(filteredZeroPairSummary.length / pendingPageSize)
+    );
+
+    if (pendingPage > totalPages) {
+      setPendingPage(totalPages);
+    }
+  }, [filteredZeroPairSummary, pendingPage, pendingPageSize]);
+
+  // ====================================================
+  // SUMMARY CARD COMPONENT
+  // ====================================================
+
+  const SummaryCard = ({
+    title,
+    value,
+    subtitle,
+    icon: Icon,
+    color,
+    bg,
+  }) => (
+    <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <p className="text-sm font-medium text-gray-500">
+            {title}
+          </p>
+
+          <h2 className="text-2xl font-bold text-gray-800 mt-2">
+            {formatNumber(value)}
+          </h2>
+
+          <p className="text-xs text-gray-400 mt-1">
+            {subtitle}
+          </p>
+        </div>
+
+        <div
+          className={`w-12 h-12 rounded-xl flex items-center justify-center ${bg}`}
+        >
+          <Icon className={`text-2xl ${color}`} />
+        </div>
+      </div>
+    </div>
+  );
+
+  // ====================================================
+  // COMMON SUMMARY TABLE WITH PAGINATION
+  // ====================================================
+
+  const SummaryTable = ({
+    title,
+    subtitle,
+    data,
+    type,
+    total,
+    pairTotal = 0,
+    currentPage,
+    setCurrentPage,
+    pageSize,
+    setPageSize,
+  }) => {
+    const isReceived = type === "received";
+
+    const totalPages = Math.max(
+      1,
+      Math.ceil(data.length / pageSize)
+    );
+
+    const startIndex = (currentPage - 1) * pageSize;
+
+    const paginatedData = data.slice(
+      startIndex,
+      startIndex + pageSize
+    );
+
+    const handlePageSizeChange = (e) => {
+      setPageSize(Number(e.target.value));
+      setCurrentPage(1);
+    };
+
+    const goToPage = (page) => {
+      setCurrentPage(
+        Math.max(1, Math.min(page, totalPages))
+      );
+    };
+
+    return (
+      <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+
+        {/* TEAL TABLE HEADING */}
+
+        <div className="px-5 py-4 bg-[#0A4B57] text-white flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+          <div>
+            <h2 className="text-lg font-bold">
+              {title}
+            </h2>
+
+            <p className="text-xs text-white/80 mt-1">
+              {subtitle}
+            </p>
+          </div>
+
+          <span className="text-xs font-semibold px-3 py-1.5 rounded-full bg-white/15 text-white w-fit">
+            {data.length} SKU
+          </span>
+        </div>
+
+        {/* TABLE */}
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm text-left">
+
+            <thead className="bg-gray-50 text-gray-600 uppercase text-xs">
+              <tr>
+                <th className="px-5 py-3 font-semibold">
+                  #
+                </th>
+
+                <th className="px-5 py-3 font-semibold">
+                  SKU
+                </th>
+
+                {/* <th className="px-5 py-3 font-semibold text-center">
+                  Records
+                </th> */}
+
+                {/* {isReceived && (
+                  <>
+                    <th className="px-5 py-3 font-semibold text-right">
+                      Received Pair
+                    </th>
+
+                    <th className="px-5 py-3 font-semibold text-center">
+                      Packing
+                    </th>
+                  </>
+                )} */}
+
+                <th className="px-5 py-3 font-semibold text-right">
+                  {isReceived
+                    ? "Received Carton"
+                    : "Carton"}
+                </th>
+              </tr>
+            </thead>
+
+            <tbody className="divide-y divide-gray-100">
+
+              {loading ? (
+                <tr>
+                  <td
+                    colSpan={3}
+                    className="px-5 py-10 text-center text-gray-500"
+                  >
+                    Loading data...
+                  </td>
+                </tr>
+              ) : paginatedData.length === 0 ? (
+                <tr>
+                  <td
+                    colSpan={3}
+                    className="px-5 py-10 text-center text-gray-400"
+                  >
+                    No records found
+                  </td>
+                </tr>
+              ) : (
+                paginatedData.map((item, index) => (
+                  <tr
+                    key={item.sku}
+                    className="hover:bg-teal-50/40 transition-colors"
+                  >
+                    <td className="px-5 py-3 text-gray-500">
+                      {startIndex + index + 1}
+                    </td>
+
+                    <td className="px-5 py-3 font-semibold text-[#0A4B57]">
+                      {item.sku}
+                    </td>
+
+                    {/* <td className="px-5 py-3 text-center text-gray-600">
+                      {formatNumber(item.records)}
+                    </td> */}
+{/* 
+                    {isReceived && (
+                      <>
+                        <td className="px-5 py-3 text-right font-semibold text-gray-800">
+                          {formatNumber(
+                            item.totalUpperStorePair
+                          )}
+                        </td>
+
+                        <td className="px-5 py-3 text-center text-gray-600">
+                          {formatNumber(item.packing)}
+                        </td>
+                      </>
+                    )} */}
+
+                    <td
+                      className={`px-5 py-3 text-right font-bold ${
+                        isReceived
+                          ? "text-green-700"
+                          : "text-orange-700"
+                      }`}
+                    >
+                      {formatNumber(
+                        isReceived
+                          ? item.totalUpperStoreCarton
+                          : item.totalCarton
+                      )}
+                    </td>
+                  </tr>
+                ))
+              )}
+
+            </tbody>
+
+            {/* GRAND TOTAL */}
+
+            {!loading && data.length > 0 && (
+              <tfoot className="bg-gray-50 border-t-2 border-gray-200">
+                <tr>
+                  <td
+                    colSpan={2}
+                    className="px-5 py-4 font-bold text-gray-800"
+                  >
+                    GRAND TOTAL
+                  </td>
+
+                  {/* {isReceived && (
+                    <>
+                      <td className="px-5 py-4 text-right font-bold text-gray-800">
+                        {formatNumber(pairTotal)}
+                      </td>
+
+                      <td></td>
+                    </>
+                  )} */}
+
+                  <td
+                    className={`px-5 py-4 text-right font-bold ${
+                      isReceived
+                        ? "text-green-700"
+                        : "text-orange-700"
+                    }`}
+                  >
+                    {formatNumber(total)}
+                  </td>
+                </tr>
+              </tfoot>
+            )}
+
+          </table>
+        </div>
+
+        {/* PAGINATION */}
+
+        {!loading && data.length > 0 && (
+          <div className="px-4 py-4 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-4">
+
+            {/* ROWS PER PAGE */}
+
+            <div className="flex flex-wrap items-center justify-center gap-2 text-sm text-gray-600">
+              <span>Rows per page:</span>
+
+              <select
+                value={pageSize}
+                onChange={handlePageSizeChange}
+                className="border border-gray-300 rounded-md px-2 py-1.5 outline-none focus:border-[#0A4B57]"
+              >
+                {[10, 25, 50, 100].map((size) => (
+                  <option key={size} value={size}>
+                    {size}
+                  </option>
+                ))}
+              </select>
+
+              <span className="text-gray-500">
+                {startIndex + 1}-
+                {Math.min(
+                  startIndex + pageSize,
+                  data.length
+                )}{" "}
+                of {data.length}
+              </span>
+            </div>
+
+            {/* PAGE BUTTONS */}
+
+            <div className="flex items-center gap-1 flex-wrap justify-center">
+
+              <button
+                type="button"
+                onClick={() => goToPage(1)}
+                disabled={currentPage === 1}
+                className="px-3 py-2 border border-gray-300 rounded-md text-sm disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-100"
+              >
+                First
+              </button>
+
+              <button
+                type="button"
+                onClick={() => goToPage(currentPage - 1)}
+                disabled={currentPage === 1}
+                className="px-3 py-2 border border-gray-300 rounded-md text-sm disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-100"
+              >
+                Prev
+              </button>
+
+              <span className="px-3 py-2 bg-[#0A4B57] text-white rounded-md text-sm font-semibold">
+                {currentPage} / {totalPages}
+              </span>
+
+              <button
+                type="button"
+                onClick={() => goToPage(currentPage + 1)}
+                disabled={currentPage === totalPages}
+                className="px-3 py-2 border border-gray-300 rounded-md text-sm disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-100"
+              >
+                Next
+              </button>
+
+              <button
+                type="button"
+                onClick={() => goToPage(totalPages)}
+                disabled={currentPage === totalPages}
+                className="px-3 py-2 border border-gray-300 rounded-md text-sm disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-100"
+              >
+                Last
+              </button>
+
+            </div>
+          </div>
+        )}
+
+      </div>
+    );
+  };
+
+  // ====================================================
+  // MAIN UI
   // ====================================================
 
   return (
-    <main className="min-h-screen bg-slate-50 p-4 md:p-6">
-      <div className="mx-auto max-w-[1600px]">
+    <div className="min-h-screen bg-gray-50 p-4 md:p-6">
 
-        {/* HEADER */}
+      <div className="max-w-[1600px] mx-auto space-y-6">
 
-        <header className="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+        {/* PAGE HEADER */}
+
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+
           <div>
-            <h1 className="text-2xl font-bold text-slate-800 md:text-3xl">
+            <h1 className="text-2xl md:text-3xl font-bold text-[#0A4B57]">
               Production Dashboard
             </h1>
 
-            <p className="mt-1 text-sm text-slate-500">
-              SKU wise Upper Store Received summary.
+            <p className="text-sm text-gray-500 mt-1">
+              SKU wise Upper Store received and pending carton summary
             </p>
           </div>
 
           <button
             type="button"
-            onClick={fetchDashboardData}
+            onClick={fetchData}
             disabled={loading}
-            className="flex items-center justify-center gap-2 rounded-lg bg-[#0A4B57] px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+            className="flex items-center justify-center gap-2 bg-[#0A4B57] hover:bg-[#083c45] disabled:opacity-60 text-white px-5 py-2.5 rounded-lg text-sm font-semibold transition"
           >
             <MdRefresh
-              size={20}
-              className={loading ? "animate-spin" : ""}
+              className={`text-lg ${
+                loading ? "animate-spin" : ""
+              }`}
             />
 
-            {loading ? "Loading..." : "Refresh Data"}
+            Refresh
           </button>
-        </header>
 
-        {/* SUMMARY CARDS */}
+        </div>
 
-        <section className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-
-          {/* TOTAL SKU */}
-
-          <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-slate-500">
-                  Active SKU
-                </p>
-
-                <h2 className="mt-2 text-3xl font-bold text-slate-800">
-                  {formatNumber(filteredSummary.length)}
-                </h2>
-
-                <p className="mt-1 text-xs text-slate-400">
-                  Zero quantity excluded
-                </p>
-              </div>
-
-              <div className="rounded-xl bg-orange-50 p-3 text-[#EF8535]">
-                <MdInventory2 size={30} />
-              </div>
-            </div>
-          </div>
-
-          {/* TOTAL PAIR */}
-
-          <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-slate-500">
-                  Upper Store Received Pair
-                </p>
-
-                <h2 className="mt-2 text-3xl font-bold text-slate-800">
-                  {formatNumber(totalUpperStorePair)}
-                </h2>
-
-                <p className="mt-1 text-xs text-slate-400">
-                  SKU grouped total
-                </p>
-              </div>
-
-              <div className="rounded-xl bg-green-50 p-3 text-green-600">
-                <MdInventory size={30} />
-              </div>
-            </div>
-          </div>
-
-          {/* TOTAL CARTON */}
-
-          <div className="rounded-xl border border-orange-200 bg-orange-50 p-5 shadow-sm">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-semibold text-orange-700">
-                  Upper Store Received Carton
-                </p>
-
-                <h2 className="mt-2 text-3xl font-bold text-[#EF8535]">
-                  {formatNumber(totalUpperStoreCarton)}
-                </h2>
-
-                <p className="mt-1 text-xs text-orange-600">
-                  Grand total carton
-                </p>
-              </div>
-
-              <div className="rounded-xl bg-white p-3 text-[#EF8535] shadow-sm">
-                <MdAssessment size={30} />
-              </div>
-            </div>
-          </div>
-
-        </section>
-
-        {/* SEARCH */}
-
-        <section className="mb-5 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-          <div className="relative max-w-md">
-            <MdSearch
-              size={20}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-            />
-
-            <input
-              value={search}
-              onChange={(event) =>
-                setSearch(event.target.value)
-              }
-              placeholder="Search SKU..."
-              className="w-full rounded-lg border border-slate-300 py-2.5 pl-10 pr-3 text-sm outline-none transition focus:border-orange-400"
-            />
-          </div>
-        </section>
-
-        {/* ERROR */}
+        {/* ERROR MESSAGE */}
 
         {error && (
-          <div className="mb-5 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 text-sm">
             {error}
           </div>
         )}
 
-        {/* SKU SUMMARY GRID */}
+        {/* SEARCH */}
 
-        <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+        <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
 
-          <div className="flex flex-col justify-between gap-3 bg-[#0A4B57] px-5 py-4 sm:flex-row sm:items-center">
-            <div>
-              <h2 className="text-lg font-bold text-white">
-                SKU Wise Upper Store Summary
-              </h2>
+          <div className="relative max-w-md">
 
-              <p className="mt-1 text-sm text-slate-200">
-                Only SKU with received quantity is shown.
-              </p>
-            </div>
+            <MdSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xl" />
 
-            <span className="rounded-lg bg-white/15 px-4 py-2 text-sm font-semibold text-white">
-              {filteredSummary.length} SKU
-            </span>
-          </div>
-
-          <div className="max-h-[600px] overflow-auto">
-
-            <table className="w-full min-w-[800px] border-collapse text-left text-sm">
-
-              <thead className="sticky top-0 z-10">
-                <tr className="bg-slate-100">
-
-                  <th className="border-b border-slate-200 px-5 py-3">
-                    #
-                  </th>
-
-                  <th className="border-b border-slate-200 px-5 py-3">
-                    SKU
-                  </th>
-
-                  <th className="border-b border-slate-200 px-5 py-3 text-center">
-                    Records
-                  </th>
-
-                  <th className="border-b border-slate-200 px-5 py-3 text-right">
-                    Received Pair
-                  </th>
-
-                  <th className="border-b border-slate-200 px-5 py-3 text-center">
-                    Packing
-                  </th>
-
-                  <th className="border-b border-slate-200 px-5 py-3 text-right">
-                    Received Carton
-                  </th>
-
-                </tr>
-              </thead>
-
-              <tbody>
-
-                {loading ? (
-                  <tr>
-                    <td
-                      colSpan={6}
-                      className="px-5 py-16 text-center text-slate-500"
-                    >
-                      Loading dashboard data...
-                    </td>
-                  </tr>
-                ) : filteredSummary.length > 0 ? (
-
-                  filteredSummary.map((item, index) => (
-                    <tr
-                      key={item.sku}
-                      className="transition hover:bg-orange-50"
-                    >
-                      <td className="border-b border-slate-100 px-5 py-3 text-slate-500">
-                        {index + 1}
-                      </td>
-
-                      <td className="border-b border-slate-100 px-5 py-3 font-semibold text-slate-800">
-                        {item.sku}
-                      </td>
-
-                      <td className="border-b border-slate-100 px-5 py-3 text-center">
-                        {formatNumber(item.records)}
-                      </td>
-
-                      <td className="border-b border-slate-100 px-5 py-3 text-right font-semibold">
-                        {formatNumber(item.totalUpperStorePair)}
-                      </td>
-
-                      <td className="border-b border-slate-100 px-5 py-3 text-center">
-                        {formatNumber(item.packing)}
-                      </td>
-
-                      <td className="border-b border-slate-100 px-5 py-3 text-right text-base font-bold text-green-700">
-                        {formatNumber(item.totalUpperStoreCarton)}
-                      </td>
-                    </tr>
-                  ))
-
-                ) : (
-                  <tr>
-                    <td
-                      colSpan={6}
-                      className="px-5 py-16 text-center text-slate-500"
-                    >
-                      {error
-                        ? "Dashboard data load nahi ho saka."
-                        : "No received SKU records found."}
-                    </td>
-                  </tr>
-                )}
-
-              </tbody>
-
-              {/* GRAND TOTAL */}
-
-              {filteredSummary.length > 0 && !loading && (
-                <tfoot>
-                  <tr className="bg-orange-50">
-
-                    <td
-                      colSpan={3}
-                      className="border-t border-orange-200 px-5 py-4 text-right font-bold text-slate-800"
-                    >
-                      Grand Total
-                    </td>
-
-                    <td className="border-t border-orange-200 px-5 py-4 text-right font-bold">
-                      {formatNumber(totalUpperStorePair)}
-                    </td>
-
-                    <td className="border-t border-orange-200 px-5 py-4 text-center">
-                      -
-                    </td>
-
-                    <td className="border-t border-orange-200 px-5 py-4 text-right text-lg font-bold text-[#EF8535]">
-                      {formatNumber(totalUpperStoreCarton)}
-                    </td>
-
-                  </tr>
-                </tfoot>
-              )}
-
-            </table>
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search SKU..."
+              className="w-full border border-gray-300 rounded-lg pl-10 pr-4 py-2.5 text-sm outline-none focus:border-[#0A4B57] focus:ring-1 focus:ring-[#0A4B57]"
+            />
 
           </div>
-        </section>
+        </div>
+
+        {/* ============================================= */}
+        {/* FIRST SUMMARY */}
+        {/* ============================================= */}
+
+        <div>
+
+          <div className="flex items-center gap-2 mb-4">
+            <MdCheckCircle className="text-green-600 text-xl" />
+
+            <h2 className="font-bold text-[#0A4B57] text-lg">
+              Upper Store Received Summary
+            </h2>
+          </div>
+
+          {/* FIRST SUMMARY CARDS */}
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+
+            <SummaryCard
+              title="Total SKU"
+              value={filteredSkuSummary.length}
+              subtitle="Received SKU"
+              icon={MdInventory2}
+              color="text-[#0A4B57]"
+              bg="bg-teal-50"
+            />
+
+            <SummaryCard
+              title="Total Received Pair"
+              value={totalReceivedPair}
+              subtitle="Upper Store Received Pair"
+              icon={MdLayers}
+              color="text-green-600"
+              bg="bg-green-50"
+            />
+
+            <SummaryCard
+              title="Total Received Carton"
+              value={totalReceivedCarton}
+              subtitle="Pair divided by Packing"
+              icon={MdCheckCircle}
+              color="text-orange-600"
+              bg="bg-orange-50"
+            />
+
+          </div>
+        </div>
+
+        {/* FIRST GRID */}
+
+        <SummaryTable
+          title="Upper Store Received - SKU Wise"
+          subtitle="Only records where Upper Store Received Pair is greater than zero"
+          data={filteredSkuSummary}
+          type="received"
+          total={totalReceivedCarton}
+          pairTotal={totalReceivedPair}
+          currentPage={receivedPage}
+          setCurrentPage={setReceivedPage}
+          pageSize={receivedPageSize}
+          setPageSize={setReceivedPageSize}
+        />
+
+        {/* ============================================= */}
+        {/* SECOND SUMMARY */}
+        {/* ============================================= */}
+
+        <div>
+
+          <div className="flex items-center gap-2 mb-4">
+            <MdPendingActions className="text-orange-600 text-xl" />
+
+            <h2 className="font-bold text-[#0A4B57] text-lg">
+              Inline Upper Store Summary
+            </h2>
+          </div>
+
+          {/* SECOND SUMMARY CARDS */}
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+
+            <SummaryCard
+              title="Pending SKU"
+              value={filteredZeroPairSummary.length}
+              subtitle="SKU with zero received pair"
+              icon={MdInventory2}
+              color="text-orange-600"
+              bg="bg-orange-50"
+            />
+
+            <SummaryCard
+              title="Pending Carton"
+              value={zeroPairCartonTotal}
+              subtitle="Original Carton field total"
+              icon={MdPendingActions}
+              color="text-red-600"
+              bg="bg-red-50"
+            />
+
+          </div>
+        </div>
+
+        {/* SECOND GRID */}
+
+        <SummaryTable
+          title="Zero Received Pair - SKU Wise"
+          subtitle="Only records where Upper Store Received Pair is exactly zero. Original database Carton is used."
+          data={filteredZeroPairSummary}
+          type="pending"
+          total={zeroPairCartonTotal}
+          currentPage={pendingPage}
+          setCurrentPage={setPendingPage}
+          pageSize={pendingPageSize}
+          setPageSize={setPendingPageSize}
+        />
+
+        {/* FOOTER */}
+
+        <div className="text-center text-xs text-gray-400 py-2">
+          MOSACH ERP · Production Dashboard
+        </div>
 
       </div>
-    </main>
+    </div>
   );
 }
