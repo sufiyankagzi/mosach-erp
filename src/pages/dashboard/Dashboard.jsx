@@ -1,19 +1,41 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+
 import axios from "axios";
+
 import {
   MdRefresh,
   MdSearch,
   MdCheckCircle,
   MdPendingActions,
-  MdLayers,
 } from "react-icons/md";
+
+// ======================================================
+// API CONFIGURATION
+// ======================================================
 
 const API_BASE_URL =
   "https://mosach-erp-server.onrender.com/api/production-report";
 
+// ======================================================
+// HELPER FUNCTIONS
+// ======================================================
+
 const toNumber = (value) => {
-  if (value === null || value === undefined || value === "") return 0;
+  if (
+    value === null ||
+    value === undefined ||
+    value === ""
+  ) {
+    return 0;
+  }
+
   const number = Number(value);
+
   return Number.isFinite(number) ? number : 0;
 };
 
@@ -33,13 +55,24 @@ const getRowsFromResponse = (response) => {
   return [];
 };
 
+// ======================================================
+// DASHBOARD
+// ======================================================
+
 export default function Dashboard() {
   const [rows, setRows] = useState([]);
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
   const [search, setSearch] = useState("");
+
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+
+  // ====================================================
+  // FETCH DATA
+  // ====================================================
 
   const fetchData = useCallback(async () => {
     try {
@@ -51,6 +84,7 @@ export default function Dashboard() {
       });
 
       setRows(getRowsFromResponse(response));
+
       setCurrentPage(1);
     } catch (err) {
       console.error("Dashboard API Error:", err);
@@ -75,9 +109,18 @@ export default function Dashboard() {
     setCurrentPage(1);
   }, [search, pageSize]);
 
-  // =====================================================
-  // SINGLE SKU-WISE SUMMARY
-  // =====================================================
+  // ====================================================
+  // SKU WISE SUMMARY
+  //
+  // Received Pair > 0:
+  // Received Carton = Total Pair / Packing
+  //
+  // Received Pair = 0:
+  // Pending Carton = Original Carton
+  //
+  // Blank Pair:
+  // Ignore
+  // ====================================================
 
   const skuSummary = useMemo(() => {
     const grouped = {};
@@ -94,7 +137,9 @@ export default function Dashboard() {
         rawPair === undefined ||
         String(rawPair).trim() === "";
 
-      const pair = isBlankPair ? 0 : toNumber(rawPair);
+      const pair = isBlankPair
+        ? 0
+        : toNumber(rawPair);
 
       if (!grouped[sku]) {
         grouped[sku] = {
@@ -105,7 +150,7 @@ export default function Dashboard() {
         };
       }
 
-      // Received Pair > 0
+      // RECEIVED PAIR CALCULATION
       if (!isBlankPair && pair > 0) {
         grouped[sku].receivedPair += pair;
 
@@ -116,9 +161,11 @@ export default function Dashboard() {
         }
       }
 
-      // Received Pair = 0
+      // PENDING CARTON CALCULATION
       else if (!isBlankPair && pair === 0) {
-        grouped[sku].pendingCarton += toNumber(row.carton);
+        grouped[sku].pendingCarton += toNumber(
+          row.carton
+        );
       }
     });
 
@@ -135,14 +182,17 @@ export default function Dashboard() {
       }))
       .filter(
         (item) =>
-          item.receivedPair > 0 || item.pendingCarton > 0
+          item.receivedPair > 0 ||
+          item.pendingCarton > 0
       )
-      .sort((a, b) => a.sku.localeCompare(b.sku));
+      .sort((a, b) =>
+        a.sku.localeCompare(b.sku)
+      );
   }, [rows]);
 
-  // =====================================================
+  // ====================================================
   // SEARCH
-  // =====================================================
+  // ====================================================
 
   const filteredSummary = useMemo(() => {
     const value = search.trim().toLowerCase();
@@ -154,35 +204,29 @@ export default function Dashboard() {
     );
   }, [skuSummary, search]);
 
-  // =====================================================
+  // ====================================================
   // GRAND TOTAL
-  // =====================================================
+  // ====================================================
 
-  const totals = useMemo(
-    () =>
-      filteredSummary.reduce(
-        (acc, item) => ({
-          receivedPair:
-            acc.receivedPair + item.receivedPair,
+  const totals = useMemo(() => {
+    return filteredSummary.reduce(
+      (acc, item) => ({
+        receivedCarton:
+          acc.receivedCarton + item.receivedCarton,
 
-          receivedCarton:
-            acc.receivedCarton + item.receivedCarton,
+        pendingCarton:
+          acc.pendingCarton + item.pendingCarton,
+      }),
+      {
+        receivedCarton: 0,
+        pendingCarton: 0,
+      }
+    );
+  }, [filteredSummary]);
 
-          pendingCarton:
-            acc.pendingCarton + item.pendingCarton,
-        }),
-        {
-          receivedPair: 0,
-          receivedCarton: 0,
-          pendingCarton: 0,
-        }
-      ),
-    [filteredSummary]
-  );
-
-  // =====================================================
+  // ====================================================
   // PAGINATION
-  // =====================================================
+  // ====================================================
 
   const totalPages = Math.max(
     1,
@@ -198,9 +242,9 @@ export default function Dashboard() {
     startIndex + pageSize
   );
 
-  // =====================================================
+  // ====================================================
   // SUMMARY CARD
-  // =====================================================
+  // ====================================================
 
   const SummaryCard = ({
     title,
@@ -210,7 +254,7 @@ export default function Dashboard() {
     color,
     bg,
   }) => (
-    <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+    <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 sm:p-5">
       <div className="flex items-center justify-between gap-3">
         <div>
           <p className="text-sm font-medium text-gray-500">
@@ -227,7 +271,7 @@ export default function Dashboard() {
         </div>
 
         <div
-          className={`w-12 h-12 rounded-xl flex items-center justify-center ${bg}`}
+          className={`w-11 h-11 shrink-0 rounded-xl flex items-center justify-center ${bg}`}
         >
           <Icon className={`text-2xl ${color}`} />
         </div>
@@ -235,24 +279,26 @@ export default function Dashboard() {
     </div>
   );
 
-  // =====================================================
+  // ====================================================
   // MAIN UI
-  // =====================================================
+  // ====================================================
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 md:p-6">
-      <div className="max-w-[1600px] mx-auto space-y-6">
+    <div className="min-h-screen w-full bg-gray-50 px-3 py-4 sm:px-5 md:px-6">
+
+      <div className="max-w-[1600px] mx-auto space-y-5">
 
         {/* HEADER */}
 
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-[#0A4B57]">
+            <h1 className="text-2xl sm:text-3xl font-bold text-[#0A4B57]">
               Production Dashboard
             </h1>
 
             <p className="text-sm text-gray-500 mt-1">
-              SKU Wise Upper Store Received and Pending Summary
+              SKU Wise Upper Store Received & Pending Carton Summary
             </p>
           </div>
 
@@ -260,15 +306,17 @@ export default function Dashboard() {
             type="button"
             onClick={fetchData}
             disabled={loading}
-            className="flex items-center justify-center gap-2 bg-[#0A4B57] hover:bg-[#083c45] disabled:opacity-60 text-white px-5 py-2.5 rounded-lg text-sm font-semibold transition"
+            className="flex items-center justify-center gap-2 bg-[#0A4B57] hover:bg-[#083c45] disabled:opacity-60 text-white px-5 py-2.5 rounded-lg text-sm font-semibold transition w-full sm:w-auto"
           >
             <MdRefresh
               className={`text-lg ${
                 loading ? "animate-spin" : ""
               }`}
             />
+
             Refresh
           </button>
+
         </div>
 
         {/* ERROR */}
@@ -281,21 +329,12 @@ export default function Dashboard() {
 
         {/* SUMMARY CARDS */}
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-
-          <SummaryCard
-            title="Total Received Pair"
-            value={totals.receivedPair}
-            subtitle="Upper Store Received Pair"
-            icon={MdLayers}
-            color="text-green-600"
-            bg="bg-green-50"
-          />
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
 
           <SummaryCard
             title="Total Received Carton"
             value={totals.receivedCarton}
-            subtitle="Received Pair divided by Packing"
+            subtitle="Received Pair / Packing"
             icon={MdCheckCircle}
             color="text-green-700"
             bg="bg-green-50"
@@ -304,7 +343,7 @@ export default function Dashboard() {
           <SummaryCard
             title="Pending Carton"
             value={totals.pendingCarton}
-            subtitle="Original Carton where received pair is zero"
+            subtitle="Original Pending Carton"
             icon={MdPendingActions}
             color="text-orange-600"
             bg="bg-orange-50"
@@ -312,45 +351,52 @@ export default function Dashboard() {
 
         </div>
 
-        {/* SINGLE GRID */}
+        {/* SKU SUMMARY */}
 
         <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
 
-          {/* GRID HEADER */}
+          {/* TABLE HEADER */}
 
-          <div className="px-5 py-4 bg-[#0A4B57] text-white flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="px-4 sm:px-5 py-4 bg-[#0A4B57] text-white flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+
             <div>
               <h2 className="text-lg font-bold">
                 SKU Wise Upper Store Summary
               </h2>
 
               <p className="text-xs text-white/80 mt-1">
-                Received Pair and Pending Carton — Both in One Grid
+                Received Carton & Pending Carton
               </p>
             </div>
 
             <span className="text-xs font-semibold px-3 py-1.5 rounded-full bg-white/15 w-fit">
               {filteredSummary.length} SKU
             </span>
+
           </div>
 
-          {/* SEARCH AND PAGE SIZE */}
+          {/* SEARCH */}
 
-          <div className="p-4 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="px-3 sm:px-5 py-4 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
 
-            <div className="relative max-w-md w-full">
+            <div className="relative w-full sm:max-w-md">
+
               <MdSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xl" />
 
               <input
                 type="text"
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={(e) =>
+                  setSearch(e.target.value)
+                }
                 placeholder="Search SKU..."
                 className="w-full border border-gray-300 rounded-lg pl-10 pr-4 py-2.5 text-sm outline-none focus:border-[#0A4B57] focus:ring-1 focus:ring-[#0A4B57]"
               />
+
             </div>
 
-            <div className="flex items-center gap-2 text-sm text-gray-600">
+            <div className="flex items-center justify-between sm:justify-end gap-2 text-sm text-gray-600">
+
               <span>Rows per page:</span>
 
               <select
@@ -359,7 +405,7 @@ export default function Dashboard() {
                   setPageSize(Number(e.target.value));
                   setCurrentPage(1);
                 }}
-                className="border border-gray-300 rounded-md px-2 py-2 outline-none focus:border-[#0A4B57]"
+                className="border border-gray-300 rounded-md px-3 py-2 outline-none focus:border-[#0A4B57]"
               >
                 {[10, 25, 50, 100].map((size) => (
                   <option key={size} value={size}>
@@ -367,127 +413,133 @@ export default function Dashboard() {
                   </option>
                 ))}
               </select>
+
             </div>
 
           </div>
 
           {/* TABLE */}
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm text-left min-w-[760px]">
+          {/* TABLE */}
 
-              <thead className="bg-gray-50 text-gray-600 uppercase text-xs">
-                <tr>
-                  <th className="px-5 py-3 font-semibold">
-                    #
-                  </th>
+<div className="px-2 sm:px-5 py-3">
 
-                  <th className="px-5 py-3 font-semibold">
-                    SKU
-                  </th>
+  <div className="w-full rounded-lg border border-gray-200 overflow-hidden">
 
-                  <th className="px-5 py-3 font-semibold text-right">
-                    Received Pair
-                  </th>
 
-                  {/* <th className="px-5 py-3 font-semibold text-right">
-                    Received Carton
-                  </th> */}
+<table className="w-full table-fixed text-sm text-left">
 
-                  <th className="px-5 py-3 font-semibold text-right">
-                    Pending Carton
-                  </th>
-                </tr>
-              </thead>
+  <colgroup>
+    <col style={{ width: "8%" }} />
+    <col style={{ width: "50%" }} />
+    <col style={{ width: "21%" }} />
+    <col style={{ width: "21%" }} />
+  </colgroup>
 
-              <tbody className="divide-y divide-gray-100">
+  <thead className="bg-gray-50 text-gray-600">
+    <tr>
+      <th className="pl-2 pr-0 sm:px-3 py-3 font-semibold whitespace-nowrap">
+        #
+      </th>
 
-                {loading ? (
-                  <tr>
-                    <td
-                      colSpan={5}
-                      className="px-5 py-10 text-center text-gray-500"
-                    >
-                      Loading data...
-                    </td>
-                  </tr>
-                ) : pageRows.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan={5}
-                      className="px-5 py-10 text-center text-gray-400"
-                    >
-                      No records found
-                    </td>
-                  </tr>
-                ) : (
-                  pageRows.map((item, index) => (
-                    <tr
-                      key={item.sku}
-                      className="hover:bg-teal-50/40 transition-colors"
-                    >
-                      <td className="px-5 py-3 text-gray-500">
-                        {startIndex + index + 1}
-                      </td>
+      <th className="pl-1 pr-0 sm:px-3 py-3 font-semibold whitespace-nowrap">
+        SKU
+      </th>
 
-                      <td className="px-5 py-3 font-semibold text-[#0A4B57]">
-                        {item.sku}
-                      </td>
+      <th className="pl-0 pr-2 sm:px-3 py-3 font-semibold text-right whitespace-nowrap">
+        <span className="sm:hidden">REC.CTN.</span>
+        <span className="hidden sm:inline">Received Carton</span>
+      </th>
 
-                      {/* <td className="px-5 py-3 text-right font-semibold text-gray-800">
-                        {formatNumber(item.receivedPair)}
-                      </td> */}
+      <th className="pl-0 pr-2 sm:px-3 py-3 font-semibold text-right whitespace-nowrap">
+        <span className="sm:hidden">PEN.CTN.</span>
+        <span className="hidden sm:inline">Pending Carton</span>
+      </th>
+    </tr>
+  </thead>
 
-                      <td className="px-5 py-3 text-right font-bold text-green-700">
-                        {formatNumber(item.receivedCarton)}
-                      </td>
+  <tbody className="divide-y divide-gray-100">
 
-                      <td className="px-5 py-3 text-right font-bold text-orange-700">
-                        {formatNumber(item.pendingCarton)}
-                      </td>
-                    </tr>
-                  ))
-                )}
+    {loading ? (
+      <tr>
+        <td colSpan={4} className="px-2 py-10 text-center text-gray-500">
+          Loading data...
+        </td>
+      </tr>
+    ) : pageRows.length === 0 ? (
+      <tr>
+        <td colSpan={4} className="px-2 py-10 text-center text-gray-400">
+          No records found
+        </td>
+      </tr>
+    ) : (
+      pageRows.map((item, index) => (
+        <tr
+          key={item.sku}
+          className="hover:bg-teal-50/40 transition-colors"
+        >
 
-              </tbody>
+          <td className="pl-2 pr-0 sm:px-3 py-3 text-gray-500 whitespace-nowrap">
+            {startIndex + index + 1}
+          </td>
 
-              {/* GRAND TOTAL */}
+          <td className="pl-1 pr-0 sm:px-3 py-3 font-semibold text-[#0A4B57] whitespace-nowrap overflow-hidden">
+            <span className="block truncate">
+              {item.sku}
+            </span>
+          </td>
 
-              {!loading && filteredSummary.length > 0 && (
-                <tfoot className="bg-gray-50 border-t-2 border-gray-200">
-                  <tr>
-                    <td
-                      colSpan={2}
-                      className="px-5 py-4 font-bold text-gray-800"
-                    >
-                      GRAND TOTAL
-                    </td>
+          <td className="pl-0 pr-2 sm:px-3 py-3 text-right font-bold text-green-700 whitespace-nowrap">
+            {formatNumber(item.receivedCarton)}
+          </td>
 
-                    {/* <td className="px-5 py-4 text-right font-bold text-gray-800">
-                      {formatNumber(totals.receivedPair)}
-                    </td> */}
+          <td className="pl-0 pr-2 sm:px-3 py-3 text-right font-bold text-orange-700 whitespace-nowrap">
+            {formatNumber(item.pendingCarton)}
+          </td>
 
-                    <td className="px-5 py-4 text-right font-bold text-green-700">
-                      {formatNumber(totals.receivedCarton)}
-                    </td>
+        </tr>
+      ))
+    )}
 
-                    <td className="px-5 py-4 text-right font-bold text-orange-700">
-                      {formatNumber(totals.pendingCarton)}
-                    </td>
-                  </tr>
-                </tfoot>
-              )}
+  </tbody>
 
-            </table>
-          </div>
+  {!loading && filteredSummary.length > 0 && (
+    <tfoot className="bg-gray-50 border-t-2 border-gray-200">
+      <tr>
+        <td
+          colSpan={2}
+          className="pl-2 pr-0 sm:px-3 py-4 font-bold text-gray-800 whitespace-nowrap"
+        >
+          TOTAL
+        </td>
+
+        <td className="pl-0 pr-2 sm:px-3 py-4 text-right font-bold text-green-700 whitespace-nowrap">
+          {formatNumber(totals.receivedCarton)}
+        </td>
+
+        <td className="pl-0 pr-2 sm:px-3 py-4 text-right font-bold text-orange-700 whitespace-nowrap">
+          {formatNumber(totals.pendingCarton)}
+        </td>
+      </tr>
+    </tfoot>
+  )}
+
+</table>
+
+
+  </div>
+
+</div>
+
 
           {/* PAGINATION */}
 
           {!loading && filteredSummary.length > 0 && (
-            <div className="px-4 py-4 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-4">
 
-              <span className="text-sm text-gray-500">
-                {startIndex + 1}-
+            <div className="px-4 sm:px-5 py-4 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-4">
+
+              <span className="text-sm text-gray-500 whitespace-nowrap">
+                {startIndex + 1} -{" "}
                 {Math.min(
                   startIndex + pageSize,
                   filteredSummary.length
@@ -509,7 +561,9 @@ export default function Dashboard() {
                 <button
                   type="button"
                   onClick={() =>
-                    setCurrentPage((p) => Math.max(1, p - 1))
+                    setCurrentPage((p) =>
+                      Math.max(1, p - 1)
+                    )
                   }
                   disabled={safePage === 1}
                   className="px-3 py-2 border border-gray-300 rounded-md text-sm disabled:opacity-40"
@@ -536,7 +590,9 @@ export default function Dashboard() {
 
                 <button
                   type="button"
-                  onClick={() => setCurrentPage(totalPages)}
+                  onClick={() =>
+                    setCurrentPage(totalPages)
+                  }
                   disabled={safePage === totalPages}
                   className="px-3 py-2 border border-gray-300 rounded-md text-sm disabled:opacity-40"
                 >
@@ -544,16 +600,21 @@ export default function Dashboard() {
                 </button>
 
               </div>
+
             </div>
+
           )}
 
         </div>
+
+        {/* FOOTER */}
 
         <div className="text-center text-xs text-gray-400 py-2">
           MOSACH ERP · Production Dashboard
         </div>
 
       </div>
+
     </div>
   );
 }
