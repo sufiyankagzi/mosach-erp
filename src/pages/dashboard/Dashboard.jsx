@@ -1,47 +1,26 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import axios from "axios";
-
 import {
   MdRefresh,
   MdSearch,
-  MdInventory2,
   MdCheckCircle,
   MdPendingActions,
   MdLayers,
 } from "react-icons/md";
 
-// ======================================================
-// API CONFIGURATION
-// ======================================================
-
 const API_BASE_URL =
   "https://mosach-erp-server.onrender.com/api/production-report";
 
-// ======================================================
-// HELPER FUNCTIONS
-// ======================================================
-
 const toNumber = (value) => {
-  if (value === null || value === undefined || value === "") {
-    return 0;
-  }
-
+  if (value === null || value === undefined || value === "") return 0;
   const number = Number(value);
-
   return Number.isFinite(number) ? number : 0;
 };
 
-const formatNumber = (value) => {
-  return Number(value || 0).toLocaleString("en-IN", {
+const formatNumber = (value) =>
+  Number(value || 0).toLocaleString("en-IN", {
     maximumFractionDigits: 0,
   });
-};
-
-const getPacking = (row) => {
-  const packing = toNumber(row.packing);
-
-  return packing > 0 ? packing : 24;
-};
 
 const getRowsFromResponse = (response) => {
   const data = response?.data;
@@ -54,30 +33,13 @@ const getRowsFromResponse = (response) => {
   return [];
 };
 
-// ======================================================
-// MAIN DASHBOARD
-// ======================================================
-
 export default function Dashboard() {
   const [rows, setRows] = useState([]);
-
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
-
-  // ====================================================
-  // INDEPENDENT PAGINATION STATES
-  // ====================================================
-
-  const [receivedPage, setReceivedPage] = useState(1);
-  const [pendingPage, setPendingPage] = useState(1);
-
-  const [receivedPageSize, setReceivedPageSize] = useState(10);
-  const [pendingPageSize, setPendingPageSize] = useState(10);
-
-  // ====================================================
-  // LOAD PRODUCTION REPORT DATA
-  // ====================================================
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   const fetchData = useCallback(async () => {
     try {
@@ -88,12 +50,8 @@ export default function Dashboard() {
         timeout: 120000,
       });
 
-      const data = getRowsFromResponse(response);
-
-      setRows(data);
-
-      setReceivedPage(1);
-      setPendingPage(1);
+      setRows(getRowsFromResponse(response));
+      setCurrentPage(1);
     } catch (err) {
       console.error("Dashboard API Error:", err);
 
@@ -113,22 +71,13 @@ export default function Dashboard() {
     fetchData();
   }, [fetchData]);
 
-  // ====================================================
-  // SEARCH CHANGE - RESET BOTH PAGES
-  // ====================================================
-
   useEffect(() => {
-    setReceivedPage(1);
-    setPendingPage(1);
-  }, [search]);
+    setCurrentPage(1);
+  }, [search, pageSize]);
 
-  // ====================================================
-  // 1. UPPER STORE RECEIVED SUMMARY
-  //
-  // Condition: upperstorepairqty > 0
-  // Group by SKU
-  // Total Pair / Packing = Carton
-  // ====================================================
+  // =====================================================
+  // SINGLE SKU-WISE SUMMARY
+  // =====================================================
 
   const skuSummary = useMemo(() => {
     const grouped = {};
@@ -138,54 +87,64 @@ export default function Dashboard() {
 
       if (!sku) return;
 
-      const pair = toNumber(row.upperstorepairqty);
+      const rawPair = row.upperstorepairqty;
 
-      // Only positive received pair records
-      if (pair <= 0) return;
+      const isBlankPair =
+        rawPair === null ||
+        rawPair === undefined ||
+        String(rawPair).trim() === "";
+
+      const pair = isBlankPair ? 0 : toNumber(rawPair);
 
       if (!grouped[sku]) {
         grouped[sku] = {
           sku,
-          records: 0,
-          totalUpperStorePair: 0,
-          packing: getPacking(row),
+          receivedPair: 0,
+          receivedPacking: 24,
+          pendingCarton: 0,
         };
       }
 
-      grouped[sku].records += 1;
+      // Received Pair > 0
+      if (!isBlankPair && pair > 0) {
+        grouped[sku].receivedPair += pair;
 
-      grouped[sku].totalUpperStorePair += pair;
+        const packing = toNumber(row.packing);
 
-      // Use latest valid packing value encountered
-      if (toNumber(row.packing) > 0) {
-        grouped[sku].packing = toNumber(row.packing);
+        if (packing > 0) {
+          grouped[sku].receivedPacking = packing;
+        }
+      }
+
+      // Received Pair = 0
+      else if (!isBlankPair && pair === 0) {
+        grouped[sku].pendingCarton += toNumber(row.carton);
       }
     });
 
     return Object.values(grouped)
-      .map((item) => {
-        const totalUpperStoreCarton = Math.round(
-          item.totalUpperStorePair / item.packing
-        );
+      .map((item) => ({
+        ...item,
 
-        return {
-          ...item,
-          totalUpperStoreCarton,
-        };
-      })
+        receivedCarton: Math.round(
+          item.receivedPair /
+            (item.receivedPacking > 0
+              ? item.receivedPacking
+              : 24)
+        ),
+      }))
       .filter(
         (item) =>
-          item.totalUpperStorePair > 0 &&
-          item.totalUpperStoreCarton > 0
+          item.receivedPair > 0 || item.pendingCarton > 0
       )
       .sort((a, b) => a.sku.localeCompare(b.sku));
   }, [rows]);
 
-  // ====================================================
-  // FIRST SUMMARY SEARCH FILTER
-  // ====================================================
+  // =====================================================
+  // SEARCH
+  // =====================================================
 
-  const filteredSkuSummary = useMemo(() => {
+  const filteredSummary = useMemo(() => {
     const value = search.trim().toLowerCase();
 
     if (!value) return skuSummary;
@@ -195,128 +154,53 @@ export default function Dashboard() {
     );
   }, [skuSummary, search]);
 
-  // ====================================================
-  // FIRST SUMMARY TOTALS
-  // ====================================================
+  // =====================================================
+  // GRAND TOTAL
+  // =====================================================
 
-  const totalReceivedPair = useMemo(() => {
-    return filteredSkuSummary.reduce(
-      (total, item) => total + item.totalUpperStorePair,
-      0
-    );
-  }, [filteredSkuSummary]);
+  const totals = useMemo(
+    () =>
+      filteredSummary.reduce(
+        (acc, item) => ({
+          receivedPair:
+            acc.receivedPair + item.receivedPair,
 
-  const totalReceivedCarton = useMemo(() => {
-    return filteredSkuSummary.reduce(
-      (total, item) => total + item.totalUpperStoreCarton,
-      0
-    );
-  }, [filteredSkuSummary]);
+          receivedCarton:
+            acc.receivedCarton + item.receivedCarton,
 
-  // ====================================================
-  // 2. PENDING UPPER STORE SUMMARY
-  //
-  // Condition: upperstorepairqty = 0
-  // Group by SKU
-  // Sum original database carton field
-  // ====================================================
+          pendingCarton:
+            acc.pendingCarton + item.pendingCarton,
+        }),
+        {
+          receivedPair: 0,
+          receivedCarton: 0,
+          pendingCarton: 0,
+        }
+      ),
+    [filteredSummary]
+  );
 
-  const zeroPairSummary = useMemo(() => {
-    const grouped = {};
+  // =====================================================
+  // PAGINATION
+  // =====================================================
 
-    rows.forEach((row) => {
-      const sku = String(row.sku || "").trim();
+  const totalPages = Math.max(
+    1,
+    Math.ceil(filteredSummary.length / pageSize)
+  );
 
-      if (!sku) return;
+  const safePage = Math.min(currentPage, totalPages);
 
-      const pairValue = row.upperstorepairqty;
+  const startIndex = (safePage - 1) * pageSize;
 
-      // Ignore blank/null pair values
-      if (
-        pairValue === null ||
-        pairValue === undefined ||
-        String(pairValue).trim() === ""
-      ) {
-        return;
-      }
+  const pageRows = filteredSummary.slice(
+    startIndex,
+    startIndex + pageSize
+  );
 
-      // Only exactly zero pair records
-      if (toNumber(pairValue) !== 0) return;
-
-      // Original database carton value
-      const carton = toNumber(row.carton);
-
-      if (!grouped[sku]) {
-        grouped[sku] = {
-          sku,
-          records: 0,
-          totalCarton: 0,
-        };
-      }
-
-      grouped[sku].records += 1;
-      grouped[sku].totalCarton += carton;
-    });
-
-    return Object.values(grouped)
-      .filter((item) => item.totalCarton > 0)
-      .sort((a, b) => a.sku.localeCompare(b.sku));
-  }, [rows]);
-
-  // ====================================================
-  // SECOND SUMMARY SEARCH FILTER
-  // ====================================================
-
-  const filteredZeroPairSummary = useMemo(() => {
-    const value = search.trim().toLowerCase();
-
-    if (!value) return zeroPairSummary;
-
-    return zeroPairSummary.filter((item) =>
-      item.sku.toLowerCase().includes(value)
-    );
-  }, [zeroPairSummary, search]);
-
-  // ====================================================
-  // SECOND SUMMARY TOTAL
-  // ====================================================
-
-  const zeroPairCartonTotal = useMemo(() => {
-    return filteredZeroPairSummary.reduce(
-      (total, item) => total + item.totalCarton,
-      0
-    );
-  }, [filteredZeroPairSummary]);
-
-  // ====================================================
-  // PAGINATION SAFETY
-  // ====================================================
-
-  useEffect(() => {
-    const totalPages = Math.max(
-      1,
-      Math.ceil(filteredSkuSummary.length / receivedPageSize)
-    );
-
-    if (receivedPage > totalPages) {
-      setReceivedPage(totalPages);
-    }
-  }, [filteredSkuSummary, receivedPage, receivedPageSize]);
-
-  useEffect(() => {
-    const totalPages = Math.max(
-      1,
-      Math.ceil(filteredZeroPairSummary.length / pendingPageSize)
-    );
-
-    if (pendingPage > totalPages) {
-      setPendingPage(totalPages);
-    }
-  }, [filteredZeroPairSummary, pendingPage, pendingPageSize]);
-
-  // ====================================================
-  // SUMMARY CARD COMPONENT
-  // ====================================================
+  // =====================================================
+  // SUMMARY CARD
+  // =====================================================
 
   const SummaryCard = ({
     title,
@@ -351,320 +235,24 @@ export default function Dashboard() {
     </div>
   );
 
-  // ====================================================
-  // COMMON SUMMARY TABLE WITH PAGINATION
-  // ====================================================
-
-  const SummaryTable = ({
-    title,
-    subtitle,
-    data,
-    type,
-    total,
-    pairTotal = 0,
-    currentPage,
-    setCurrentPage,
-    pageSize,
-    setPageSize,
-  }) => {
-    const isReceived = type === "received";
-
-    const totalPages = Math.max(
-      1,
-      Math.ceil(data.length / pageSize)
-    );
-
-    const startIndex = (currentPage - 1) * pageSize;
-
-    const paginatedData = data.slice(
-      startIndex,
-      startIndex + pageSize
-    );
-
-    const handlePageSizeChange = (e) => {
-      setPageSize(Number(e.target.value));
-      setCurrentPage(1);
-    };
-
-    const goToPage = (page) => {
-      setCurrentPage(
-        Math.max(1, Math.min(page, totalPages))
-      );
-    };
-
-    return (
-      <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
-
-        {/* TEAL TABLE HEADING */}
-
-        <div className="px-5 py-4 bg-[#0A4B57] text-white flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-          <div>
-            <h2 className="text-lg font-bold">
-              {title}
-            </h2>
-
-            <p className="text-xs text-white/80 mt-1">
-              {subtitle}
-            </p>
-          </div>
-
-          <span className="text-xs font-semibold px-3 py-1.5 rounded-full bg-white/15 text-white w-fit">
-            {data.length} SKU
-          </span>
-        </div>
-
-        {/* TABLE */}
-
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm text-left">
-
-            <thead className="bg-gray-50 text-gray-600 uppercase text-xs">
-              <tr>
-                <th className="px-5 py-3 font-semibold">
-                  #
-                </th>
-
-                <th className="px-5 py-3 font-semibold">
-                  SKU
-                </th>
-
-                {/* <th className="px-5 py-3 font-semibold text-center">
-                  Records
-                </th> */}
-
-                {/* {isReceived && (
-                  <>
-                    <th className="px-5 py-3 font-semibold text-right">
-                      Received Pair
-                    </th>
-
-                    <th className="px-5 py-3 font-semibold text-center">
-                      Packing
-                    </th>
-                  </>
-                )} */}
-
-                <th className="px-5 py-3 font-semibold text-right">
-                  {isReceived
-                    ? "Received Carton"
-                    : "Carton"}
-                </th>
-              </tr>
-            </thead>
-
-            <tbody className="divide-y divide-gray-100">
-
-              {loading ? (
-                <tr>
-                  <td
-                    colSpan={3}
-                    className="px-5 py-10 text-center text-gray-500"
-                  >
-                    Loading data...
-                  </td>
-                </tr>
-              ) : paginatedData.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={3}
-                    className="px-5 py-10 text-center text-gray-400"
-                  >
-                    No records found
-                  </td>
-                </tr>
-              ) : (
-                paginatedData.map((item, index) => (
-                  <tr
-                    key={item.sku}
-                    className="hover:bg-teal-50/40 transition-colors"
-                  >
-                    <td className="px-5 py-3 text-gray-500">
-                      {startIndex + index + 1}
-                    </td>
-
-                    <td className="px-5 py-3 font-semibold text-[#0A4B57]">
-                      {item.sku}
-                    </td>
-
-                    {/* <td className="px-5 py-3 text-center text-gray-600">
-                      {formatNumber(item.records)}
-                    </td> */}
-{/* 
-                    {isReceived && (
-                      <>
-                        <td className="px-5 py-3 text-right font-semibold text-gray-800">
-                          {formatNumber(
-                            item.totalUpperStorePair
-                          )}
-                        </td>
-
-                        <td className="px-5 py-3 text-center text-gray-600">
-                          {formatNumber(item.packing)}
-                        </td>
-                      </>
-                    )} */}
-
-                    <td
-                      className={`px-5 py-3 text-right font-bold ${
-                        isReceived
-                          ? "text-green-700"
-                          : "text-orange-700"
-                      }`}
-                    >
-                      {formatNumber(
-                        isReceived
-                          ? item.totalUpperStoreCarton
-                          : item.totalCarton
-                      )}
-                    </td>
-                  </tr>
-                ))
-              )}
-
-            </tbody>
-
-            {/* GRAND TOTAL */}
-
-            {!loading && data.length > 0 && (
-              <tfoot className="bg-gray-50 border-t-2 border-gray-200">
-                <tr>
-                  <td
-                    colSpan={2}
-                    className="px-5 py-4 font-bold text-gray-800"
-                  >
-                    GRAND TOTAL
-                  </td>
-
-                  {/* {isReceived && (
-                    <>
-                      <td className="px-5 py-4 text-right font-bold text-gray-800">
-                        {formatNumber(pairTotal)}
-                      </td>
-
-                      <td></td>
-                    </>
-                  )} */}
-
-                  <td
-                    className={`px-5 py-4 text-right font-bold ${
-                      isReceived
-                        ? "text-green-700"
-                        : "text-orange-700"
-                    }`}
-                  >
-                    {formatNumber(total)}
-                  </td>
-                </tr>
-              </tfoot>
-            )}
-
-          </table>
-        </div>
-
-        {/* PAGINATION */}
-
-        {!loading && data.length > 0 && (
-          <div className="px-4 py-4 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-4">
-
-            {/* ROWS PER PAGE */}
-
-            <div className="flex flex-wrap items-center justify-center gap-2 text-sm text-gray-600">
-              <span>Rows per page:</span>
-
-              <select
-                value={pageSize}
-                onChange={handlePageSizeChange}
-                className="border border-gray-300 rounded-md px-2 py-1.5 outline-none focus:border-[#0A4B57]"
-              >
-                {[10, 25, 50, 100].map((size) => (
-                  <option key={size} value={size}>
-                    {size}
-                  </option>
-                ))}
-              </select>
-
-              <span className="text-gray-500">
-                {startIndex + 1}-
-                {Math.min(
-                  startIndex + pageSize,
-                  data.length
-                )}{" "}
-                of {data.length}
-              </span>
-            </div>
-
-            {/* PAGE BUTTONS */}
-
-            <div className="flex items-center gap-1 flex-wrap justify-center">
-
-              <button
-                type="button"
-                onClick={() => goToPage(1)}
-                disabled={currentPage === 1}
-                className="px-3 py-2 border border-gray-300 rounded-md text-sm disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-100"
-              >
-                First
-              </button>
-
-              <button
-                type="button"
-                onClick={() => goToPage(currentPage - 1)}
-                disabled={currentPage === 1}
-                className="px-3 py-2 border border-gray-300 rounded-md text-sm disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-100"
-              >
-                Prev
-              </button>
-
-              <span className="px-3 py-2 bg-[#0A4B57] text-white rounded-md text-sm font-semibold">
-                {currentPage} / {totalPages}
-              </span>
-
-              <button
-                type="button"
-                onClick={() => goToPage(currentPage + 1)}
-                disabled={currentPage === totalPages}
-                className="px-3 py-2 border border-gray-300 rounded-md text-sm disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-100"
-              >
-                Next
-              </button>
-
-              <button
-                type="button"
-                onClick={() => goToPage(totalPages)}
-                disabled={currentPage === totalPages}
-                className="px-3 py-2 border border-gray-300 rounded-md text-sm disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-100"
-              >
-                Last
-              </button>
-
-            </div>
-          </div>
-        )}
-
-      </div>
-    );
-  };
-
-  // ====================================================
+  // =====================================================
   // MAIN UI
-  // ====================================================
+  // =====================================================
 
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-6">
-
       <div className="max-w-[1600px] mx-auto space-y-6">
 
-        {/* PAGE HEADER */}
+        {/* HEADER */}
 
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-
           <div>
             <h1 className="text-2xl md:text-3xl font-bold text-[#0A4B57]">
               Production Dashboard
             </h1>
 
             <p className="text-sm text-gray-500 mt-1">
-              SKU wise Upper Store received and pending carton summary
+              SKU Wise Upper Store Received and Pending Summary
             </p>
           </div>
 
@@ -679,13 +267,11 @@ export default function Dashboard() {
                 loading ? "animate-spin" : ""
               }`}
             />
-
             Refresh
           </button>
-
         </div>
 
-        {/* ERROR MESSAGE */}
+        {/* ERROR */}
 
         {error && (
           <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 text-sm">
@@ -693,142 +279,275 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* SEARCH */}
+        {/* SUMMARY CARDS */}
 
-        <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
 
-          <div className="relative max-w-md">
+          <SummaryCard
+            title="Total Received Pair"
+            value={totals.receivedPair}
+            subtitle="Upper Store Received Pair"
+            icon={MdLayers}
+            color="text-green-600"
+            bg="bg-green-50"
+          />
 
-            <MdSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xl" />
+          <SummaryCard
+            title="Total Received Carton"
+            value={totals.receivedCarton}
+            subtitle="Received Pair divided by Packing"
+            icon={MdCheckCircle}
+            color="text-green-700"
+            bg="bg-green-50"
+          />
 
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search SKU..."
-              className="w-full border border-gray-300 rounded-lg pl-10 pr-4 py-2.5 text-sm outline-none focus:border-[#0A4B57] focus:ring-1 focus:ring-[#0A4B57]"
-            />
+          <SummaryCard
+            title="Pending Carton"
+            value={totals.pendingCarton}
+            subtitle="Original Carton where received pair is zero"
+            icon={MdPendingActions}
+            color="text-orange-600"
+            bg="bg-orange-50"
+          />
 
-          </div>
         </div>
 
-        {/* ============================================= */}
-        {/* FIRST SUMMARY */}
-        {/* ============================================= */}
+        {/* SINGLE GRID */}
 
-        <div>
+        <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
 
-          <div className="flex items-center gap-2 mb-4">
-            <MdCheckCircle className="text-green-600 text-xl" />
+          {/* GRID HEADER */}
 
-            <h2 className="font-bold text-[#0A4B57] text-lg">
-              Upper Store Received Summary
-            </h2>
+          <div className="px-5 py-4 bg-[#0A4B57] text-white flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-bold">
+                SKU Wise Upper Store Summary
+              </h2>
+
+              <p className="text-xs text-white/80 mt-1">
+                Received Pair and Pending Carton — Both in One Grid
+              </p>
+            </div>
+
+            <span className="text-xs font-semibold px-3 py-1.5 rounded-full bg-white/15 w-fit">
+              {filteredSummary.length} SKU
+            </span>
           </div>
 
-          {/* FIRST SUMMARY CARDS */}
+          {/* SEARCH AND PAGE SIZE */}
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="p-4 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
 
-            <SummaryCard
-              title="Total SKU"
-              value={filteredSkuSummary.length}
-              subtitle="Received SKU"
-              icon={MdInventory2}
-              color="text-[#0A4B57]"
-              bg="bg-teal-50"
-            />
+            <div className="relative max-w-md w-full">
+              <MdSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xl" />
 
-            <SummaryCard
-              title="Total Received Pair"
-              value={totalReceivedPair}
-              subtitle="Upper Store Received Pair"
-              icon={MdLayers}
-              color="text-green-600"
-              bg="bg-green-50"
-            />
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search SKU..."
+                className="w-full border border-gray-300 rounded-lg pl-10 pr-4 py-2.5 text-sm outline-none focus:border-[#0A4B57] focus:ring-1 focus:ring-[#0A4B57]"
+              />
+            </div>
 
-            <SummaryCard
-              title="Total Received Carton"
-              value={totalReceivedCarton}
-              subtitle="Pair divided by Packing"
-              icon={MdCheckCircle}
-              color="text-orange-600"
-              bg="bg-orange-50"
-            />
+            <div className="flex items-center gap-2 text-sm text-gray-600">
+              <span>Rows per page:</span>
+
+              <select
+                value={pageSize}
+                onChange={(e) => {
+                  setPageSize(Number(e.target.value));
+                  setCurrentPage(1);
+                }}
+                className="border border-gray-300 rounded-md px-2 py-2 outline-none focus:border-[#0A4B57]"
+              >
+                {[10, 25, 50, 100].map((size) => (
+                  <option key={size} value={size}>
+                    {size}
+                  </option>
+                ))}
+              </select>
+            </div>
 
           </div>
+
+          {/* TABLE */}
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm text-left min-w-[760px]">
+
+              <thead className="bg-gray-50 text-gray-600 uppercase text-xs">
+                <tr>
+                  <th className="px-5 py-3 font-semibold">
+                    #
+                  </th>
+
+                  <th className="px-5 py-3 font-semibold">
+                    SKU
+                  </th>
+
+                  <th className="px-5 py-3 font-semibold text-right">
+                    Received Pair
+                  </th>
+
+                  {/* <th className="px-5 py-3 font-semibold text-right">
+                    Received Carton
+                  </th> */}
+
+                  <th className="px-5 py-3 font-semibold text-right">
+                    Pending Carton
+                  </th>
+                </tr>
+              </thead>
+
+              <tbody className="divide-y divide-gray-100">
+
+                {loading ? (
+                  <tr>
+                    <td
+                      colSpan={5}
+                      className="px-5 py-10 text-center text-gray-500"
+                    >
+                      Loading data...
+                    </td>
+                  </tr>
+                ) : pageRows.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan={5}
+                      className="px-5 py-10 text-center text-gray-400"
+                    >
+                      No records found
+                    </td>
+                  </tr>
+                ) : (
+                  pageRows.map((item, index) => (
+                    <tr
+                      key={item.sku}
+                      className="hover:bg-teal-50/40 transition-colors"
+                    >
+                      <td className="px-5 py-3 text-gray-500">
+                        {startIndex + index + 1}
+                      </td>
+
+                      <td className="px-5 py-3 font-semibold text-[#0A4B57]">
+                        {item.sku}
+                      </td>
+
+                      {/* <td className="px-5 py-3 text-right font-semibold text-gray-800">
+                        {formatNumber(item.receivedPair)}
+                      </td> */}
+
+                      <td className="px-5 py-3 text-right font-bold text-green-700">
+                        {formatNumber(item.receivedCarton)}
+                      </td>
+
+                      <td className="px-5 py-3 text-right font-bold text-orange-700">
+                        {formatNumber(item.pendingCarton)}
+                      </td>
+                    </tr>
+                  ))
+                )}
+
+              </tbody>
+
+              {/* GRAND TOTAL */}
+
+              {!loading && filteredSummary.length > 0 && (
+                <tfoot className="bg-gray-50 border-t-2 border-gray-200">
+                  <tr>
+                    <td
+                      colSpan={2}
+                      className="px-5 py-4 font-bold text-gray-800"
+                    >
+                      GRAND TOTAL
+                    </td>
+
+                    {/* <td className="px-5 py-4 text-right font-bold text-gray-800">
+                      {formatNumber(totals.receivedPair)}
+                    </td> */}
+
+                    <td className="px-5 py-4 text-right font-bold text-green-700">
+                      {formatNumber(totals.receivedCarton)}
+                    </td>
+
+                    <td className="px-5 py-4 text-right font-bold text-orange-700">
+                      {formatNumber(totals.pendingCarton)}
+                    </td>
+                  </tr>
+                </tfoot>
+              )}
+
+            </table>
+          </div>
+
+          {/* PAGINATION */}
+
+          {!loading && filteredSummary.length > 0 && (
+            <div className="px-4 py-4 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-4">
+
+              <span className="text-sm text-gray-500">
+                {startIndex + 1}-
+                {Math.min(
+                  startIndex + pageSize,
+                  filteredSummary.length
+                )}{" "}
+                of {filteredSummary.length}
+              </span>
+
+              <div className="flex items-center gap-1 flex-wrap justify-center">
+
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage(1)}
+                  disabled={safePage === 1}
+                  className="px-3 py-2 border border-gray-300 rounded-md text-sm disabled:opacity-40"
+                >
+                  First
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    setCurrentPage((p) => Math.max(1, p - 1))
+                  }
+                  disabled={safePage === 1}
+                  className="px-3 py-2 border border-gray-300 rounded-md text-sm disabled:opacity-40"
+                >
+                  Prev
+                </button>
+
+                <span className="px-3 py-2 bg-[#0A4B57] text-white rounded-md text-sm font-semibold">
+                  {safePage} / {totalPages}
+                </span>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    setCurrentPage((p) =>
+                      Math.min(totalPages, p + 1)
+                    )
+                  }
+                  disabled={safePage === totalPages}
+                  className="px-3 py-2 border border-gray-300 rounded-md text-sm disabled:opacity-40"
+                >
+                  Next
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage(totalPages)}
+                  disabled={safePage === totalPages}
+                  className="px-3 py-2 border border-gray-300 rounded-md text-sm disabled:opacity-40"
+                >
+                  Last
+                </button>
+
+              </div>
+            </div>
+          )}
+
         </div>
-
-        {/* FIRST GRID */}
-
-        <SummaryTable
-          title="Upper Store Received - SKU Wise"
-          subtitle="Only records where Upper Store Received Pair is greater than zero"
-          data={filteredSkuSummary}
-          type="received"
-          total={totalReceivedCarton}
-          pairTotal={totalReceivedPair}
-          currentPage={receivedPage}
-          setCurrentPage={setReceivedPage}
-          pageSize={receivedPageSize}
-          setPageSize={setReceivedPageSize}
-        />
-
-        {/* ============================================= */}
-        {/* SECOND SUMMARY */}
-        {/* ============================================= */}
-
-        <div>
-
-          <div className="flex items-center gap-2 mb-4">
-            <MdPendingActions className="text-orange-600 text-xl" />
-
-            <h2 className="font-bold text-[#0A4B57] text-lg">
-              Inline Upper Store Summary
-            </h2>
-          </div>
-
-          {/* SECOND SUMMARY CARDS */}
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-
-            <SummaryCard
-              title="Pending SKU"
-              value={filteredZeroPairSummary.length}
-              subtitle="SKU with zero received pair"
-              icon={MdInventory2}
-              color="text-orange-600"
-              bg="bg-orange-50"
-            />
-
-            <SummaryCard
-              title="Pending Carton"
-              value={zeroPairCartonTotal}
-              subtitle="Original Carton field total"
-              icon={MdPendingActions}
-              color="text-red-600"
-              bg="bg-red-50"
-            />
-
-          </div>
-        </div>
-
-        {/* SECOND GRID */}
-
-        <SummaryTable
-          title="Zero Received Pair - SKU Wise"
-          subtitle="Only records where Upper Store Received Pair is exactly zero. Original database Carton is used."
-          data={filteredZeroPairSummary}
-          type="pending"
-          total={zeroPairCartonTotal}
-          currentPage={pendingPage}
-          setCurrentPage={setPendingPage}
-          pageSize={pendingPageSize}
-          setPageSize={setPendingPageSize}
-        />
-
-        {/* FOOTER */}
 
         <div className="text-center text-xs text-gray-400 py-2">
           MOSACH ERP · Production Dashboard
