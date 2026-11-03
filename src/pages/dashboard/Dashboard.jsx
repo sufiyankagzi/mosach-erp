@@ -447,13 +447,13 @@ export default function Dashboard() {
       </th>
 
       <th className="pl-0 pr-2 sm:px-3 py-3 font-semibold text-right whitespace-nowrap">
-        <span className="sm:hidden">REC.CTN.</span>
-        <span className="hidden sm:inline">Received Carton</span>
+        <span className="sm:hidden">UP.STR.CTN.</span>
+        <span className="hidden sm:inline">Upper Store Carton</span>
       </th>
 
       <th className="pl-0 pr-2 sm:px-3 py-3 font-semibold text-right whitespace-nowrap">
-        <span className="sm:hidden">PEN.CTN.</span>
-        <span className="hidden sm:inline">Pending Carton</span>
+        <span className="sm:hidden">INL.CTN.</span>
+        <span className="hidden sm:inline">Inline Carton</span>
       </th>
     </tr>
   </thead>
