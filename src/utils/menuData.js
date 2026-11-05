@@ -91,6 +91,12 @@ const menuData = [
         icon: MdFactory,
         path: "/production/productionupload",
       },
+
+      {
+        name: "To Cut Upload",
+        icon: MdFactory,
+        path: "/production/tocutupload",
+      },
     ],
   },
 

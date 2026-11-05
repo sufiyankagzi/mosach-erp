@@ -6,6 +6,7 @@ import ProtectedRoute from "../components/ProtectedRoute";
 
 import Login from "../pages/auth/Login";
 import ProductionUpload from "../pages/production/ProductionUpload";
+import ToCutUpload from "../pages/production/ToCutUpload";
 import Dashboard from "../pages/dashboard/Dashboard";
 import Masters from "../pages/masters/Masters";
 import Purchase from "../pages/purchase/Purchase";
@@ -52,91 +53,95 @@ const AppRoutes = () => {
             {/* =========================
                 LOGIN
             ========================= */}
-            <Route path="/login"element={<Login />}/>
+            <Route path="/login" element={<Login />} />
             {/* =========================
                 DEFAULT
             ========================= */}
-            <Route path="/"element={<Navigate to="/login" replace />}/>
+            <Route path="/" element={<Navigate to="/login" replace />} />
             {/* =========================
                 PROTECTED ERP ROUTES
             ========================= */}
             <Route element={<ProtectedRoute />}>
                 {/* MAIN ERP LAYOUT */}
                 <Route element={<MainLayout />}>
-                    <Route path="/dashboard"element={<Dashboard />}/>
-                    <Route path="/masters"element={<Masters />}/>
-                    <Route path="/purchase"element={<Purchase />}/>
-                    <Route path="/sales"element={<Sales />}/>
-                    <Route path="/inventory" element={<Inventory />}/>
-                    <Route path="/production"element={<Production />}/>
-                    <Route path="/reports" element={<Reports />}/>
-                    <Route path="/settings" element={<Settings />}/>
-                    <Route path="/masters/company" element={<Company />}/>
-                    <Route path="/masters/company/add" element={<AddCompany />}/>
-                    <Route path="/masters/company/edit/:id"element={<AddCompany />}/>
+                    <Route path="/dashboard" element={<Dashboard />} />
+                    <Route path="/masters" element={<Masters />} />
+                    <Route path="/purchase" element={<Purchase />} />
+                    <Route path="/sales" element={<Sales />} />
+                    <Route path="/inventory" element={<Inventory />} />
+                    <Route path="/production" element={<Production />} />
+                    <Route path="/reports" element={<Reports />} />
+                    <Route path="/settings" element={<Settings />} />
+                    <Route path="/masters/company" element={<Company />} />
+                    <Route path="/masters/company/add" element={<AddCompany />} />
+                    <Route path="/masters/company/edit/:id" element={<AddCompany />} />
                     {/* USERS */}
-                    <Route path="/masters/users" element={<Users/>}/>
-                    <Route path="/masters/users/add" element={<AddUser />}/>
-                    <Route path="/masters/users/edit/:id"element={<AddUser />}/>
+                    <Route path="/masters/users" element={<Users />} />
+                    <Route path="/masters/users/add" element={<AddUser />} />
+                    <Route path="/masters/users/edit/:id" element={<AddUser />} />
                     {/* SALES PERSON */}
-                    <Route path="/masters/salesperson" element={<SalesPerson/>}/>
-                    <Route path="/masters/salesperson/add" element={<AddSalesPerson />}/>
-                    <Route path="/masters/salesperson/edit/:id"element={<AddSalesPerson />}/>
+                    <Route path="/masters/salesperson" element={<SalesPerson />} />
+                    <Route path="/masters/salesperson/add" element={<AddSalesPerson />} />
+                    <Route path="/masters/salesperson/edit/:id" element={<AddSalesPerson />} />
 
                     {/* SALES PERSON */}
-                    <Route path="/masters/gender" element={<Gender/>}/>
-                    <Route path="/masters/gender/add" element={<AddGender />}/>
-                    <Route path="/masters/gender/edit/:id"element={<AddGender />}/>
+                    <Route path="/masters/gender" element={<Gender />} />
+                    <Route path="/masters/gender/add" element={<AddGender />} />
+                    <Route path="/masters/gender/edit/:id" element={<AddGender />} />
 
                     {/* SALES CATEGORY */}
-                    <Route path="/masters/category" element={<Category/>}/>
-                    <Route path="/masters/category/add" element={<AddCategory />}/>
-                    <Route path="/masters/category/edit/:id"element={<AddCategory />}/>
+                    <Route path="/masters/category" element={<Category />} />
+                    <Route path="/masters/category/add" element={<AddCategory />} />
+                    <Route path="/masters/category/edit/:id" element={<AddCategory />} />
 
                     {/* COLOR */}
-                    <Route path="/masters/color" element={<Color/>}/>
-                    <Route path="/masters/color/add" element={<AddColor />}/>
-                    <Route path="/masters/color/edit/:id"element={<AddColor />}/>
+                    <Route path="/masters/color" element={<Color />} />
+                    <Route path="/masters/color/add" element={<AddColor />} />
+                    <Route path="/masters/color/edit/:id" element={<AddColor />} />
 
                     {/* SIZE GROUP */}
-                    <Route path="/masters/sizegroup" element={<SizeGroup/>}/>
-                    <Route path="/masters/sizegroup/add" element={<AddSizeGroup />}/>
-                    <Route path="/masters/sizegroup/edit/:id"element={<AddSizeGroup />}/>
+                    <Route path="/masters/sizegroup" element={<SizeGroup />} />
+                    <Route path="/masters/sizegroup/add" element={<AddSizeGroup />} />
+                    <Route path="/masters/sizegroup/edit/:id" element={<AddSizeGroup />} />
 
                     {/* SIZE */}
-                    <Route path="/masters/size" element={<Size/>}/>
-                    <Route path="/masters/size/add" element={<AddSize />}/>
-                    <Route path="/masters/size/edit/:id"element={<AddSize />}/>
+                    <Route path="/masters/size" element={<Size />} />
+                    <Route path="/masters/size/add" element={<AddSize />} />
+                    <Route path="/masters/size/edit/:id" element={<AddSize />} />
 
                     {/* ARTICLE */}
-                    <Route path="/masters/article" element={<Article/>}/>
-                    <Route path="/masters/article/add" element={<AddArticle />}/>
-                    <Route path="/masters/article/edit/:id"element={<AddArticle />}/>
+                    <Route path="/masters/article" element={<Article />} />
+                    <Route path="/masters/article/add" element={<AddArticle />} />
+                    <Route path="/masters/article/edit/:id" element={<AddArticle />} />
 
-                     {/* MATERIAL */}
-                    <Route path="/masters/material" element={<Material/>}/>
-                    <Route path="/masters/material/add" element={<AddMaterial />}/>
-                    <Route path="/masters/material/edit/:id"element={<AddMaterial />}/>
-                    
-                    
-                     {/* ARTICLE BOM */}
-                    <Route path="/masters/articlebom" element={<ArticleBOM/>}/>
-                    <Route path="/masters/articlebom/add" element={<AddArticleBOM />}/>
-                    <Route path="/masters/articlebom/edit/:id"element={<AddArticleBOM />}/>
+                    {/* MATERIAL */}
+                    <Route path="/masters/material" element={<Material />} />
+                    <Route path="/masters/material/add" element={<AddMaterial />} />
+                    <Route path="/masters/material/edit/:id" element={<AddMaterial />} />
+
+
+                    {/* ARTICLE BOM */}
+                    <Route path="/masters/articlebom" element={<ArticleBOM />} />
+                    <Route path="/masters/articlebom/add" element={<AddArticleBOM />} />
+                    <Route path="/masters/articlebom/edit/:id" element={<AddArticleBOM />} />
 
 
                     {/* ORDER */}
-                    <Route path="/production/order" element={<Order/>}/>
-                    <Route path="/production/order/add" element={<AddOrder />}/>
-                    <Route path="/production/order/edit/:id"element={<AddOrder />}/>
+                    <Route path="/production/order" element={<Order />} />
+                    <Route path="/production/order/add" element={<AddOrder />} />
+                    <Route path="/production/order/edit/:id" element={<AddOrder />} />
 
-                    <Route path="/reports/order/date-wise" element={<OrderReport />}/>
+                    <Route path="/reports/order/date-wise" element={<OrderReport />} />
 
                     {/* PRODUCTION UPLOAD */}
-                    <Route path="/production/productionupload"element={<ProductionUpload />}/>
+                    <Route path="/production/productionupload" element={<ProductionUpload />} />
+
+                    {/* TOCUT UPLOAD */}
+                    <Route path="/production/tocutupload" element={<ToCutUpload />} />
+
                     {/* PRODUCTION REPORT */}
-                    <Route path="/reports/production/productionreport" element={<ProductionReport />}/>
-                    
+                    <Route path="/reports/production/productionreport" element={<ProductionReport />} />
+
                     <Route path="/upper-report" element={<ProductionDetailReport stage="upper" />} />
                     <Route path="/article-production-report" element={<ProductionDetailReport stage="article" />} />
 
@@ -144,35 +149,35 @@ const AppRoutes = () => {
     ADVANCED PRODUCTION REPORTS
 ========================= */}
 
-<Route
-    path="/reports/production/dashboard"
-    element={<Dashboard />}
-/>
+                    <Route
+                        path="/reports/production/dashboard"
+                        element={<Dashboard />}
+                    />
 
-<Route
-    path="/job-card-report"
-    element={<ProductionDetailReport stage="jobcard" />}
-/>
+                    <Route
+                        path="/job-card-report"
+                        element={<ProductionDetailReport stage="jobcard" />}
+                    />
 
-<Route
-    path="/cutting-report"
-    element={<ProductionDetailReport stage="cutting" />}
-/>
+                    <Route
+                        path="/cutting-report"
+                        element={<ProductionDetailReport stage="cutting" />}
+                    />
 
-<Route
-    path="/upper-report"
-    element={<ProductionDetailReport stage="upper" />}
-/>
+                    <Route
+                        path="/upper-report"
+                        element={<ProductionDetailReport stage="upper" />}
+                    />
 
-<Route
-    path="/upper-store-report"
-    element={<ProductionDetailReport stage="store" />}
-/>
+                    <Route
+                        path="/upper-store-report"
+                        element={<ProductionDetailReport stage="store" />}
+                    />
 
-<Route
-    path="/article-production-report"
-    element={<ProductionDetailReport stage="article" />}
-/>
+                    <Route
+                        path="/article-production-report"
+                        element={<ProductionDetailReport stage="article" />}
+                    />
 
                 </Route>
             </Route>
