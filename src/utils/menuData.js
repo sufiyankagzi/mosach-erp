@@ -110,6 +110,11 @@ const menuData = [
         icon: MdFactory,
         path: "/reports/production/productionreport",
       },
+      {
+        name: "To Cut Report",
+        icon: MdFactory,
+        path: "/reports/production/tocutreport",
+      },
     ],
   },
 

@@ -43,6 +43,7 @@ import ArticleBOM from "../pages/masters/articlebom/ArticleBOM";
 import AddArticleBOM from "../pages/masters/articlebom/AddArticleBOM";
 import ProductionReport from "../pages/reports/ProductionReport";
 import ProductionDetailReport from "../pages/dashboard/ProductionDetailReport";
+import ToCutReport from "../pages/reports/ToCutReport";
 
 
 
@@ -141,6 +142,9 @@ const AppRoutes = () => {
 
                     {/* PRODUCTION REPORT */}
                     <Route path="/reports/production/productionreport" element={<ProductionReport />} />
+
+                    {/* TO CUT REPORT */}
+                    <Route path="/reports/production/tocutreport" element={<ToCutReport />} />
 
                     <Route path="/upper-report" element={<ProductionDetailReport stage="upper" />} />
                     <Route path="/article-production-report" element={<ProductionDetailReport stage="article" />} />
