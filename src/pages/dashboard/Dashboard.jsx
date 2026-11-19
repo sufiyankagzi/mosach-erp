@@ -61,6 +61,7 @@ const getRowsFromResponse = (response) => {
 
 export default function Dashboard() {
   const [rows, setRows] = useState([]);
+  const [toCutRows, setToCutRows] = useState([]);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -79,11 +80,27 @@ export default function Dashboard() {
       setLoading(true);
       setError("");
 
-      const response = await axios.get(API_BASE_URL, {
-        timeout: 120000,
-      });
+      // Production report + To Cut report dono load honge.
+      const [productionResult, toCutResult] = await Promise.allSettled([
+        axios.get(API_BASE_URL, { timeout: 120000 }),
+        axios.get("https://mosach-erp-server.onrender.com/api/tocut-report", {
+          timeout: 120000,
+        }),
+      ]);
 
-      setRows(getRowsFromResponse(response));
+      if (productionResult.status === "fulfilled") {
+        setRows(getRowsFromResponse(productionResult.value));
+      } else {
+        throw productionResult.reason;
+      }
+
+      // To Cut API fail ho to production dashboard phir bhi chalega.
+      if (toCutResult.status === "fulfilled") {
+        setToCutRows(getRowsFromResponse(toCutResult.value));
+      } else {
+        console.error("To Cut API Error:", toCutResult.reason);
+        setToCutRows([]);
+      }
 
       setCurrentPage(1);
     } catch (err) {
@@ -125,8 +142,31 @@ export default function Dashboard() {
   const skuSummary = useMemo(() => {
     const grouped = {};
 
+    // SKU-wise To Cut quantity map
+    const toCutBySku = {};
+    toCutRows.forEach((row) => {
+      const skuKey = String(row.sku || "").trim().toUpperCase();
+      if (!skuKey) return;
+
+      toCutBySku[skuKey] =
+        (toCutBySku[skuKey] || 0) + toNumber(row.tocut);
+    });
+
+    // To Cut me jo SKU hain, unko bhi group me pehle add karo.
+    // Isse production report me SKU na hone par bhi dashboard par dikhega.
+    Object.entries(toCutBySku).forEach(([skuKey, quantity]) => {
+      grouped[skuKey] = {
+        sku: skuKey,
+        receivedPair: 0,
+        receivedPacking: 24,
+        pendingCarton: 0,
+        toCut: quantity,
+      };
+    });
+
     rows.forEach((row) => {
       const sku = String(row.sku || "").trim();
+      const skuKey = sku.toUpperCase();
 
       if (!sku) return;
 
@@ -141,29 +181,30 @@ export default function Dashboard() {
         ? 0
         : toNumber(rawPair);
 
-      if (!grouped[sku]) {
-        grouped[sku] = {
+      if (!grouped[skuKey]) {
+        grouped[skuKey] = {
           sku,
           receivedPair: 0,
           receivedPacking: 24,
           pendingCarton: 0,
+          toCut: toCutBySku[skuKey] || 0,
         };
       }
 
       // RECEIVED PAIR CALCULATION
       if (!isBlankPair && pair > 0) {
-        grouped[sku].receivedPair += pair;
+        grouped[skuKey].receivedPair += pair;
 
         const packing = toNumber(row.packing);
 
         if (packing > 0) {
-          grouped[sku].receivedPacking = packing;
+          grouped[skuKey].receivedPacking = packing;
         }
       }
 
       // PENDING CARTON CALCULATION
       else if (!isBlankPair && pair === 0) {
-        grouped[sku].pendingCarton += toNumber(
+        grouped[skuKey].pendingCarton += toNumber(
           row.carton
         );
       }
@@ -179,16 +220,18 @@ export default function Dashboard() {
               ? item.receivedPacking
               : 24)
         ),
+        toCut: toCutBySku[item.sku.toUpperCase()] || 0,
       }))
       .filter(
         (item) =>
           item.receivedPair > 0 ||
-          item.pendingCarton > 0
+          item.pendingCarton > 0 ||
+          item.toCut > 0
       )
       .sort((a, b) =>
         a.sku.localeCompare(b.sku)
       );
-  }, [rows]);
+  }, [rows, toCutRows]);
 
   // ====================================================
   // SEARCH
@@ -216,10 +259,13 @@ export default function Dashboard() {
 
         pendingCarton:
           acc.pendingCarton + item.pendingCarton,
+
+        toCut: acc.toCut + item.toCut,
       }),
       {
         receivedCarton: 0,
         pendingCarton: 0,
+        toCut: 0,
       }
     );
   }, [filteredSummary]);
@@ -365,7 +411,7 @@ export default function Dashboard() {
               </h2>
 
               <p className="text-xs text-white/80 mt-1">
-                Received Carton & Pending Carton
+                To Cut, Received Carton & Pending Carton
               </p>
             </div>
 
@@ -430,10 +476,11 @@ export default function Dashboard() {
 <table className="w-full table-fixed text-sm text-left">
 
   <colgroup>
-    <col style={{ width: "8%" }} />
-    <col style={{ width: "50%" }} />
-    <col style={{ width: "21%" }} />
-    <col style={{ width: "21%" }} />
+    <col style={{ width: "7%" }} />
+    <col style={{ width: "34%" }} />
+    <col style={{ width: "19%" }} />
+    <col style={{ width: "20%" }} />
+    <col style={{ width: "20%" }} />
   </colgroup>
 
   <thead className="bg-gray-50 text-gray-600">
@@ -444,6 +491,11 @@ export default function Dashboard() {
 
       <th className="pl-1 pr-0 sm:px-3 py-3 font-semibold whitespace-nowrap">
         SKU
+      </th>
+
+      <th className="pl-0 pr-2 sm:px-3 py-3 font-semibold text-right whitespace-nowrap">
+        <span className="sm:hidden">TO CUT</span>
+        <span className="hidden sm:inline">To Cut</span>
       </th>
 
       <th className="pl-0 pr-2 sm:px-3 py-3 font-semibold text-right whitespace-nowrap">
@@ -462,13 +514,13 @@ export default function Dashboard() {
 
     {loading ? (
       <tr>
-        <td colSpan={4} className="px-2 py-10 text-center text-gray-500">
+        <td colSpan={5} className="px-2 py-10 text-center text-gray-500">
           Loading data...
         </td>
       </tr>
     ) : pageRows.length === 0 ? (
       <tr>
-        <td colSpan={4} className="px-2 py-10 text-center text-gray-400">
+        <td colSpan={5} className="px-2 py-10 text-center text-gray-400">
           No records found
         </td>
       </tr>
@@ -487,6 +539,10 @@ export default function Dashboard() {
             <span className="block truncate">
               {item.sku}
             </span>
+          </td>
+
+          <td className="pl-0 pr-2 sm:px-3 py-3 text-right font-bold text-[#0A4B57] whitespace-nowrap">
+            {formatNumber(item.toCut)}
           </td>
 
           <td className="pl-0 pr-2 sm:px-3 py-3 text-right font-bold text-green-700 whitespace-nowrap">
@@ -511,6 +567,10 @@ export default function Dashboard() {
           className="pl-2 pr-0 sm:px-3 py-4 font-bold text-gray-800 whitespace-nowrap"
         >
           TOTAL
+        </td>
+
+        <td className="pl-0 pr-2 sm:px-3 py-4 text-right font-bold text-[#0A4B57] whitespace-nowrap">
+          {formatNumber(totals.toCut)}
         </td>
 
         <td className="pl-0 pr-2 sm:px-3 py-4 text-right font-bold text-green-700 whitespace-nowrap">
