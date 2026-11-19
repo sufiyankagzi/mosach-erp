@@ -270,7 +270,7 @@ export default function ProductionReport() {
       if (responseData?.success === false) {
         throw new Error(
           responseData.message ||
-            "Production report load nahi hui."
+          "Production report load nahi hui."
         );
       }
 
@@ -288,9 +288,9 @@ export default function ProductionReport() {
 
       setError(
         err.response?.data?.message ||
-          err.response?.data?.error ||
-          err.message ||
-          "Production report load nahi hui."
+        err.response?.data?.error ||
+        err.message ||
+        "Production report load nahi hui."
       );
     } finally {
       setLoading(false);
@@ -322,17 +322,26 @@ export default function ProductionReport() {
     }
 
     // FROM DATE
+    // ====================================================
+    // FROM DATE FILTER - UPPER INSOLE ISSUE DATE
+    // ====================================================
+
     if (fromDate) {
       list = list.filter((row) => {
-        const date = getDateValue(row.reportdate);
+        const date = getDateValue(row.upperinsoleissueddate);
+
         return date && date >= fromDate;
       });
     }
 
-    // TO DATE
+    // ====================================================
+    // TO DATE FILTER - UPPER INSOLE ISSUE DATE
+    // ====================================================
+
     if (toDate) {
       list = list.filter((row) => {
-        const date = getDateValue(row.reportdate);
+        const date = getDateValue(row.upperinsoleissueddate);
+
         return date && date <= toDate;
       });
     }
@@ -856,9 +865,9 @@ export default function ProductionReport() {
               <span>
                 {filteredRows.length
                   ? `${(safePage - 1) * pageSize + 1}-${Math.min(
-                      safePage * pageSize,
-                      filteredRows.length
-                    )} of ${filteredRows.length}`
+                    safePage * pageSize,
+                    filteredRows.length
+                  )} of ${filteredRows.length}`
                   : "0 records"}
               </span>
 
