@@ -44,6 +44,8 @@ import AddArticleBOM from "../pages/masters/articlebom/AddArticleBOM";
 import ProductionReport from "../pages/reports/ProductionReport";
 import ProductionDetailReport from "../pages/dashboard/ProductionDetailReport";
 import ToCutReport from "../pages/reports/ToCutReport";
+import ProductAgeingReport from "../pages/reports/ProductAgeingReport";
+import TopProductReport from "../pages/reports/TopProductReport";
 
 
 
@@ -148,6 +150,11 @@ const AppRoutes = () => {
 
                     <Route path="/upper-report" element={<ProductionDetailReport stage="upper" />} />
                     <Route path="/article-production-report" element={<ProductionDetailReport stage="article" />} />
+
+                    {/* PRODUCT AGEING REPORT */}
+                    <Route path="/reports/production/productageingreport" element={<ProductAgeingReport />}/>
+                    {/* TOP PRODUCT REPORT */}
+                    <Route path="/reports/production/topproductreport" element={<TopProductReport />}/>
 
                     {/* =========================
     ADVANCED PRODUCTION REPORTS

@@ -115,6 +115,18 @@ const menuData = [
         icon: MdFactory,
         path: "/reports/production/tocutreport",
       },
+
+      {
+        name: "Product Ageing Report",
+        icon: MdFactory,
+        path: "/reports/production/productageingreport",
+      },
+
+      {
+        name: "Top Product Report",
+        icon: MdFactory,
+        path: "/reports/production/topproductreport",
+      },
     ],
   },
 
