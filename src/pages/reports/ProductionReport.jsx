@@ -1,4 +1,5 @@
-
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import axios from "axios";
@@ -377,6 +378,122 @@ const exportExcel = () => {
     return row[key] ?? "";
   }, []);
 
+  const exportPDF = () => {
+  if (!sortedRows.length) {
+    alert("Export karne ke liye koi record available nahi hai.");
+    return;
+  }
+
+  const doc = new jsPDF({
+    orientation: "landscape",
+    unit: "mm",
+    format: "a4",
+  });
+
+  const tableColumns = [
+    "#",
+    ...columns.map(([, label]) => label),
+  ];
+
+  const tableRows = sortedRows.map((row, index) => {
+    const record = [
+      index + 1,
+      ...columns.map(([key]) => {
+        let value = getColumnValue(row, key);
+
+        if (key === "upperstorestatus") {
+          return Number(value) === 1 ? "Completed" : "Pending";
+        }
+
+        if (dateColumns.includes(key)) {
+          return formatDate(value);
+        }
+
+        return value ?? "";
+      }),
+    ];
+
+    return record;
+  });
+
+  // Report heading
+  doc.setFontSize(13);
+  doc.setFont("helvetica", "bold");
+  doc.text("MOSACH ERP - PRODUCTION REPORT", 148.5, 10, {
+    align: "center",
+  });
+
+  // Export date
+  doc.setFontSize(8);
+  doc.setFont("helvetica", "normal");
+
+  const exportDate = new Date().toLocaleDateString("en-GB");
+
+  doc.text(`Export Date: ${exportDate}`, 287, 16, {
+    align: "right",
+  });
+
+  autoTable(doc, {
+    head: [tableColumns],
+    body: tableRows,
+
+    startY: 20,
+
+    theme: "grid",
+
+    margin: {
+      left: 5,
+      right: 5,
+      top: 20,
+      bottom: 10,
+    },
+
+    tableWidth: "auto",
+
+    styles: {
+      fontSize: 5,
+      cellPadding: 1,
+      overflow: "ellipsize",
+      valign: "middle",
+      lineWidth: 0.1,
+    },
+
+    headStyles: {
+      fillColor: [10, 75, 87],
+      textColor: 255,
+      fontStyle: "bold",
+      fontSize: 5,
+      halign: "center",
+    },
+
+    bodyStyles: {
+      textColor: [40, 40, 40],
+    },
+
+    alternateRowStyles: {
+      fillColor: [240, 245, 246],
+    },
+
+    horizontalPageBreak: false,
+
+    didDrawPage: (data) => {
+      const pageCount = doc.internal.getNumberOfPages();
+
+      doc.setFontSize(7);
+      doc.text(
+        `Page ${data.pageNumber} of ${pageCount}`,
+        287,
+        200,
+        { align: "right" }
+      );
+    },
+  });
+
+  const today = new Date().toISOString().slice(0, 10);
+
+  doc.save(`Production_Report_${today}.pdf`);
+};
+
   // ====================================================
   // FILTER DATA
   // ====================================================
@@ -662,7 +779,7 @@ const exportExcel = () => {
 
   <button
     type="button"
-    onClick={() => window.print()}
+    onClick={exportPDF}
     className="inline-flex items-center gap-2 rounded-lg bg-orange-500 px-4 py-2.5 text-sm font-bold text-white shadow transition hover:bg-orange-600"
   >
     PDF
