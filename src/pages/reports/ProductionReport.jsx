@@ -1,3 +1,4 @@
+
 import { useCallback, useEffect, useMemo, useState } from "react";
 import axios from "axios";
 
@@ -22,7 +23,7 @@ const API_BASE_URL =
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 
 // ======================================================
-// GRID COLUMNS
+// GRID COLUMNS - GRID AND MODAL SAME SEQUENCE
 // ======================================================
 
 const columns = [
@@ -37,13 +38,88 @@ const columns = [
   ["uppercontractor", "Upper Cont."],
   ["upperissuedate", "UID"],
   ["upperreceiveddate", "URD"],
+  ["upperreceivedctn", "URC"],
   ["upperinsolecontractor", "Upper/Insole Stitch"],
   ["upperinsoleissueddate", "UISD"],
   ["upperstorereceiveddate", "USRD"],
+  ["upperstorectn", "USC"],
 ];
 
 // ======================================================
-// HELPERS
+// NUMBER HELPERS
+// ======================================================
+
+const toNumber = (value) => {
+  if (value === null || value === undefined || value === "") {
+    return 0;
+  }
+
+  const number = Number(
+    String(value).replace(/,/g, "").trim()
+  );
+
+  return Number.isFinite(number) ? number : 0;
+};
+
+// ======================================================
+// PACKING VALUE
+// Supports common API/database field names.
+// Default packing = 24.
+// ======================================================
+
+const getPacking = (row) => {
+  if (!row) return 24;
+
+  const possibleFields = [
+    "packing",
+    "packingqty",
+    "packing_qty",
+    "packingquantity",
+    "packingQuantity",
+    "packingpercarton",
+    "packing_per_carton",
+    "pairspercarton",
+    "pairs_per_carton",
+  ];
+
+  for (const field of possibleFields) {
+    const value = toNumber(row[field]);
+
+    if (value > 0) {
+      return value;
+    }
+  }
+
+  return 24;
+};
+
+// ======================================================
+// CARTON CALCULATION
+// Carton = Pair / Packing
+// ======================================================
+
+const getRoundedCTN = (pairQty, packing) => {
+  const pairs = toNumber(pairQty);
+  const pack = toNumber(packing);
+
+  if (pairs <= 0 || pack <= 0) {
+    return 0;
+  }
+
+  return Math.round(pairs / pack);
+};
+
+// Main Carton calculation
+const getRowCarton = (row) => {
+  if (!row) return 0;
+
+  const packing = getPacking(row);
+
+  return getRoundedCTN(row.pair, packing);
+};
+
+// ======================================================
+// RESPONSE HELPER
 // ======================================================
 
 const getReportRows = (response) => {
@@ -53,41 +129,10 @@ const getReportRows = (response) => {
   if (Array.isArray(data?.data)) return data.data;
   if (Array.isArray(data?.rows)) return data.rows;
   if (Array.isArray(data?.records)) return data.records;
+  if (Array.isArray(data?.data?.rows)) return data.data.rows;
+  if (Array.isArray(data?.data?.records)) return data.data.records;
 
   return [];
-};
-
-const getNumber = (value) => {
-  if (
-    value === null ||
-    value === undefined ||
-    value === ""
-  ) {
-    return 0;
-  }
-
-  const number = Number(value);
-
-  return Number.isFinite(number) ? number : 0;
-};
-
-// ======================================================
-// CARTON CALCULATION
-// ======================================================
-
-// Carton = Pair / Packing
-// Rounded to nearest whole number.
-// Database carton field is NOT used.
-
-const calculateCarton = (pair, packing) => {
-  const totalPair = getNumber(pair);
-  const packingQty = getNumber(packing);
-
-  if (totalPair <= 0 || packingQty <= 0) {
-    return 0;
-  }
-
-  return Math.round(totalPair / packingQty);
 };
 
 // ======================================================
@@ -97,15 +142,27 @@ const calculateCarton = (pair, packing) => {
 const getDateValue = (value) => {
   if (!value) return "";
 
+  const text = String(value).substring(0, 10);
+
+  const match = text.match(
+    /^(\d{4})-(\d{2})-(\d{2})$/
+  );
+
+  if (match) {
+    return text;
+  }
+
   const date = new Date(value);
 
   if (Number.isNaN(date.getTime())) {
-    return String(value).substring(0, 10);
+    return text;
   }
 
   return `${date.getFullYear()}-${String(
     date.getMonth() + 1
-  ).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+  ).padStart(2, "0")}-${String(
+    date.getDate()
+  ).padStart(2, "0")}`;
 };
 
 const formatDate = (value) => {
@@ -121,6 +178,10 @@ const formatDate = (value) => {
 
   return `${parts[2]}-${parts[1]}-${parts[0]}`;
 };
+
+// ======================================================
+// DATE COLUMNS
+// ======================================================
 
 const dateColumns = [
   "reportdate",
@@ -146,6 +207,16 @@ const displayValue = (value, key) => {
 
   if (dateColumns.includes(key)) {
     return formatDate(value);
+  }
+
+  if (
+    key === "carton" ||
+    key === "upperreceivedctn" ||
+    key === "upperstorectn"
+  ) {
+    return toNumber(value).toLocaleString("en-IN", {
+      maximumFractionDigits: 0,
+    });
   }
 
   return String(value);
@@ -187,22 +258,13 @@ export default function ProductionReport() {
 
       const reportRows = getReportRows(response);
 
+      setRows(reportRows);
+
       console.log(
-        "PRODUCTION REPORT DATA:",
-        reportRows.slice(0, 10).map((row) => ({
-          jobcard: row.jobcard,
-          sku: row.sku,
-          pair: row.pair,
-          packing: row.packing,
-          calculatedCarton: calculateCarton(
-            row.pair,
-            row.packing
-          ),
-        }))
+        "Production Report Loaded:",
+        reportRows.length
       );
 
-      setRows(reportRows);
-      setPage(1);
     } catch (err) {
       console.error("Production Report Error:", err);
 
@@ -224,18 +286,37 @@ export default function ProductionReport() {
   // GET COLUMN VALUE
   // ====================================================
 
-  const getColumnValue = (row, key) => {
+  const getColumnValue = useCallback((row, key) => {
     if (!row) return "";
 
-    // Runtime carton calculation.
-    // Do not read row.carton from database.
+    // MAIN CARTON:
+    // Pair / Packing
+    // Database carton field is ignored.
 
     if (key === "carton") {
-      return calculateCarton(row.pair, row.packing);
+      return getRowCarton(row);
+    }
+
+    // Upper Received Carton
+
+    if (key === "upperreceivedctn") {
+      return getRoundedCTN(
+        row.upperreceivedpair,
+        getPacking(row)
+      );
+    }
+
+    // Upper Store Carton
+
+    if (key === "upperstorectn") {
+      return getRoundedCTN(
+        row.upperstorepairqty,
+        getPacking(row)
+      );
     }
 
     return row[key] ?? "";
-  };
+  }, []);
 
   // ====================================================
   // FILTER DATA
@@ -283,7 +364,13 @@ export default function ProductionReport() {
     }
 
     return result;
-  }, [rows, search, fromDate, toDate]);
+  }, [
+    rows,
+    search,
+    fromDate,
+    toDate,
+    getColumnValue,
+  ]);
 
   // ====================================================
   // SORT DATA
@@ -330,7 +417,12 @@ export default function ProductionReport() {
     });
 
     return result;
-  }, [filteredRows, sortField, sortDirection]);
+  }, [
+    filteredRows,
+    sortField,
+    sortDirection,
+    getColumnValue,
+  ]);
 
   // ====================================================
   // PAGINATION
@@ -357,26 +449,23 @@ export default function ProductionReport() {
   // TOTALS
   // ====================================================
 
-  const totalPair = useMemo(
-    () =>
-      filteredRows.reduce(
-        (total, row) => total + getNumber(row.pair),
-        0
-      ),
-    [filteredRows]
-  );
+  const totalPair = useMemo(() => {
+    return filteredRows.reduce(
+      (total, row) => total + toNumber(row.pair),
+      0
+    );
+  }, [filteredRows]);
 
-  // Total Carton = Sum of individually rounded cartons.
+  // IMPORTANT:
+  // Total Carton = Sum of calculated row-wise cartons.
+  // Original database row.carton is NOT used.
 
-  const totalCarton = useMemo(
-    () =>
-      filteredRows.reduce(
-        (total, row) =>
-          total + calculateCarton(row.pair, row.packing),
-        0
-      ),
-    [filteredRows]
-  );
+  const totalCarton = useMemo(() => {
+    return filteredRows.reduce(
+      (total, row) => total + getRowCarton(row),
+      0
+    );
+  }, [filteredRows]);
 
   // ====================================================
   // SORT HANDLER
@@ -460,30 +549,18 @@ export default function ProductionReport() {
   const renderStatus = (value) => {
     if (Number(value) === 1) {
       return (
-        <>
-          <span className="hidden sm:inline-flex items-center gap-1 whitespace-nowrap font-bold text-green-600">
-            <MdCheckCircle size={17} />
-            Completed
-          </span>
-
-          <span className="inline-flex sm:hidden items-center justify-center text-green-600">
-            <MdCheckCircle size={21} />
-          </span>
-        </>
+        <span className="inline-flex items-center gap-1 whitespace-nowrap font-bold text-green-600">
+          <MdCheckCircle size={17} />
+          Completed
+        </span>
       );
     }
 
     return (
-      <>
-        <span className="hidden sm:inline-flex items-center gap-1 whitespace-nowrap font-semibold text-orange-600">
-          <MdError size={16} />
-          Pending
-        </span>
-
-        <span className="inline-flex sm:hidden items-center justify-center text-orange-600">
-          <MdError size={21} />
-        </span>
-      </>
+      <span className="inline-flex items-center gap-1 whitespace-nowrap font-semibold text-orange-600">
+        <MdError size={16} />
+        Pending
+      </span>
     );
   };
 
@@ -493,87 +570,6 @@ export default function ProductionReport() {
 
   return (
     <div className="w-full space-y-4 p-3 sm:p-4">
-
-      {/* RESPONSIVE STICKY CSS */}
-
-      <style>{`
-        @media (min-width: 768px) {
-          .production-report-grid .production-index-cell {
-            position: sticky;
-            left: 0;
-          }
-        }
-
-        @media (max-width: 767px) {
-          .production-report-grid th,
-          .production-report-grid td {
-            position: static !important;
-            left: auto !important;
-            right: auto !important;
-            z-index: auto !important;
-          }
-
-          /* ONLY # FROZEN */
-
-          .production-report-grid .production-index-cell {
-            position: sticky !important;
-            left: 0 !important;
-            width: 48px !important;
-            min-width: 48px !important;
-            max-width: 48px !important;
-            z-index: 60 !important;
-            box-sizing: border-box !important;
-          }
-
-          .production-report-grid thead .production-index-cell {
-            background: #0A4B57 !important;
-            color: white !important;
-            z-index: 100 !important;
-          }
-
-          .production-report-grid tbody .production-index-cell {
-            background: white !important;
-          }
-
-          .production-report-grid tbody tr:hover .production-index-cell {
-            background: #fff7ed !important;
-          }
-
-          /* ONLY STATUS FROZEN */
-
-          .production-report-grid .production-status-cell {
-            position: sticky !important;
-            left: 48px !important;
-            width: 65px !important;
-            min-width: 65px !important;
-            max-width: 65px !important;
-            z-index: 50 !important;
-            box-sizing: border-box !important;
-          }
-
-          .production-report-grid thead .production-status-cell {
-            background: #0A4B57 !important;
-            color: white !important;
-            z-index: 100 !important;
-          }
-
-          .production-report-grid tbody .production-status-cell {
-            background: white !important;
-          }
-
-          .production-report-grid tbody tr:hover .production-status-cell {
-            background: #fff7ed !important;
-          }
-
-          .production-report-grid th:not(.production-index-cell):not(.production-status-cell),
-          .production-report-grid td:not(.production-index-cell):not(.production-status-cell) {
-            position: static !important;
-            left: auto !important;
-            right: auto !important;
-            z-index: auto !important;
-          }
-        }
-      `}</style>
 
       {/* PAGE HEADER */}
 
@@ -605,7 +601,10 @@ export default function ProductionReport() {
       {/* FILTER SECTION */}
 
       <div className="rounded-xl border border-gray-200 bg-white p-3 shadow-sm sm:p-4">
+
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+
+          {/* Search */}
 
           <div>
             <label className="mb-1 block text-xs font-bold text-gray-600">
@@ -628,6 +627,8 @@ export default function ProductionReport() {
             </div>
           </div>
 
+          {/* From Date */}
+
           <div>
             <label className="mb-1 block text-xs font-bold text-gray-600">
               UISD From Date
@@ -640,6 +641,8 @@ export default function ProductionReport() {
               className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm outline-none focus:border-[#0A4B57]"
             />
           </div>
+
+          {/* To Date */}
 
           <div>
             <label className="mb-1 block text-xs font-bold text-gray-600">
@@ -654,6 +657,8 @@ export default function ProductionReport() {
             />
           </div>
 
+          {/* Page Size */}
+
           <div>
             <label className="mb-1 block text-xs font-bold text-gray-600">
               Records Per Page
@@ -661,7 +666,9 @@ export default function ProductionReport() {
 
             <select
               value={pageSize}
-              onChange={(e) => setPageSize(Number(e.target.value))}
+              onChange={(e) =>
+                setPageSize(Number(e.target.value))
+              }
               className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm outline-none focus:border-[#0A4B57]"
             >
               {PAGE_SIZE_OPTIONS.map((size) => (
@@ -673,7 +680,10 @@ export default function ProductionReport() {
           </div>
         </div>
 
+        {/* Filter Summary */}
+
         <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-gray-100 pt-3">
+
           <p className="text-sm text-gray-600">
             Total Records:
             <span className="ml-1 font-bold text-[#0A4B57]">
@@ -719,20 +729,17 @@ export default function ProductionReport() {
           </span>
         </div>
 
-        <div className="production-report-grid relative w-full max-w-full overflow-auto overscroll-x-contain">
+        <div className="w-full overflow-x-auto">
 
-          <table
-            className="w-full border-collapse text-left text-sm"
-            style={{ minWidth: "max-content" }}
-          >
+          <table className="w-full border-collapse text-left text-sm">
+
             <thead>
               <tr>
                 <th
-                  className="production-index-cell sticky left-0 z-30 border-b border-r border-gray-200 bg-[#0A4B57] px-3 py-3 text-center font-bold text-white"
+                  className="sticky left-0 z-30 border-b border-r border-gray-200 bg-[#0A4B57] px-3 py-3 text-center font-bold text-white"
                   style={{
                     minWidth: "48px",
                     width: "48px",
-                    maxWidth: "48px",
                   }}
                 >
                   #
@@ -745,21 +752,18 @@ export default function ProductionReport() {
                     style={getStickyStyle(key)}
                     className={`cursor-pointer whitespace-nowrap border-b border-r border-gray-200 bg-[#0A4B57] px-3 py-3 font-bold text-white transition hover:bg-[#083c46] ${
                       stickyWidths[key] ? "z-30" : ""
-                    } ${
-                      key === "upperstorestatus"
-                        ? "production-status-cell"
-                        : ""
                     }`}
                   >
                     <div className="flex items-center gap-1">
                       {label}
 
-                      {sortField === key &&
-                        (sortDirection === "asc" ? (
+                      {sortField === key && (
+                        sortDirection === "asc" ? (
                           <MdKeyboardArrowUp size={17} />
                         ) : (
                           <MdKeyboardArrowDown size={17} />
-                        ))}
+                        )
+                      )}
                     </div>
                   </th>
                 ))}
@@ -798,14 +802,15 @@ export default function ProductionReport() {
                     className="group cursor-pointer transition hover:bg-orange-50"
                   >
                     <td
-                      className="production-index-cell sticky left-0 z-20 border-b border-r border-gray-100 bg-white px-3 py-2.5 text-center font-bold text-gray-500 group-hover:bg-orange-50"
+                      className="sticky left-0 z-20 border-b border-r border-gray-100 bg-white px-3 py-2.5 text-center font-bold text-gray-500 group-hover:bg-orange-50"
                       style={{
                         minWidth: "48px",
                         width: "48px",
-                        maxWidth: "48px",
                       }}
                     >
-                      {(currentPage - 1) * pageSize + index + 1}
+                      {(currentPage - 1) * pageSize +
+                        index +
+                        1}
                     </td>
 
                     {columns.map(([key]) => {
@@ -816,10 +821,8 @@ export default function ProductionReport() {
                           key={key}
                           style={getStickyStyle(key)}
                           className={`whitespace-nowrap border-b border-r border-gray-100 px-3 py-2.5 text-gray-700 group-hover:bg-orange-50 ${
-                            stickyWidths[key] ? "bg-white" : ""
-                          } ${
-                            key === "upperstorestatus"
-                              ? "production-status-cell"
+                            stickyWidths[key]
+                              ? "bg-white"
                               : ""
                           }`}
                         >
@@ -833,7 +836,7 @@ export default function ProductionReport() {
                                   : key === "jobcard"
                                   ? "font-semibold"
                                   : key === "carton"
-                                  ? "font-semibold text-orange-700"
+                                  ? "font-bold text-orange-600"
                                   : ""
                               }
                             >
@@ -847,12 +850,14 @@ export default function ProductionReport() {
                 ))
               )}
             </tbody>
+
           </table>
         </div>
 
         {/* GRID TOTAL */}
 
         <div className="flex flex-wrap items-center justify-between gap-3 border-t-2 border-[#0A4B57] bg-[#f0f7f8] px-4 py-3">
+
           <div className="flex flex-wrap items-center gap-5">
 
             <div>
@@ -874,6 +879,7 @@ export default function ProductionReport() {
                 {totalCarton.toLocaleString("en-IN")}
               </p>
             </div>
+
           </div>
 
           <span className="text-xs font-semibold text-gray-500">
@@ -891,11 +897,15 @@ export default function ProductionReport() {
               ? 0
               : (currentPage - 1) * pageSize + 1}
             {" - "}
-            {Math.min(currentPage * pageSize, sortedRows.length)}
-            {" "}of {sortedRows.length}
+            {Math.min(
+              currentPage * pageSize,
+              sortedRows.length
+            )}{" "}
+            of {sortedRows.length}
           </p>
 
           <div className="flex items-center gap-2">
+
             <button
               type="button"
               disabled={currentPage <= 1}
@@ -923,6 +933,7 @@ export default function ProductionReport() {
             >
               Next
             </button>
+
           </div>
         </div>
       </div>
@@ -942,9 +953,10 @@ export default function ProductionReport() {
             className="flex max-h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
           >
 
-            {/* MODAL HEADER */}
+            {/* Modal Header */}
 
             <div className="flex items-center justify-between gap-3 bg-[#0A4B57] px-4 py-4 text-white sm:px-6">
+
               <div className="flex min-w-0 items-center gap-3">
 
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/15">
@@ -963,6 +975,7 @@ export default function ProductionReport() {
                     Job Card: {selectedRow.jobcard || "-"}
                   </p>
                 </div>
+
               </div>
 
               <button
@@ -973,9 +986,10 @@ export default function ProductionReport() {
               >
                 <MdClose size={23} />
               </button>
+
             </div>
 
-            {/* MODAL BODY */}
+            {/* Modal Body */}
 
             <div className="overflow-y-auto p-4 sm:p-6">
 
@@ -999,16 +1013,21 @@ export default function ProductionReport() {
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
 
                 {columns.map(([key, label]) => {
-                  const value = getColumnValue(selectedRow, key);
+                  const value = getColumnValue(
+                    selectedRow,
+                    key
+                  );
 
                   return (
                     <div
                       key={key}
                       className="min-w-0 rounded-lg border border-gray-200 bg-gray-50 p-3 transition hover:border-orange-300 hover:bg-orange-50"
                     >
-                      <p className="mb-1 text-xs font-extrabold uppercase tracking-wide text-red-800">
-                        {label}
-                      </p>
+                      <div className="mb-1 flex items-center gap-2">
+                        <p className="mb-1 text-xs font-extrabold uppercase tracking-wide text-red-800">
+                          {label}
+                        </p>
+                      </div>
 
                       <div className="break-words text-sm font-semibold text-gray-800">
                         {key === "upperstorestatus" ? (
@@ -1020,12 +1039,15 @@ export default function ProductionReport() {
                     </div>
                   );
                 })}
+
               </div>
+
             </div>
 
-            {/* MODAL FOOTER */}
+            {/* Modal Footer */}
 
             <div className="flex items-center justify-end border-t border-gray-200 bg-gray-50 px-4 py-3 sm:px-6">
+
               <button
                 type="button"
                 onClick={closeModal}
@@ -1033,10 +1055,13 @@ export default function ProductionReport() {
               >
                 Close
               </button>
+
             </div>
+
           </div>
         </div>
       )}
+
     </div>
   );
 }
