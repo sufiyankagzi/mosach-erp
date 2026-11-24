@@ -200,7 +200,12 @@ const getColumnValue = (row, key) => {
   if (!row) return "";
 
   // AGEING DAYS
+  // Status 1 = Completed, so Days = 0
   if (key === "ageingdays") {
+    if (Number(row.upperstorestatus) === 1) {
+      return 0;
+    }
+
     return getAgeingDays(row.upperinsoleissueddate);
   }
 
@@ -370,99 +375,103 @@ export default function ProductionReport() {
   // SEARCH, DATE FILTER AND SORT
   // ====================================================
 
-const filteredRows = useMemo(() => {
-  let list = [...rows];
+  const filteredRows = useMemo(() => {
+    let list = [...rows];
 
-  // ONLY STATUS OTHER THAN 1
-  list = list.filter(
-    (row) => Number(row.upperstorestatus) !== 1
-  );
+    const query = search.trim().toLowerCase();
 
-  const query = search.trim().toLowerCase();
-
-  // SEARCH
-  if (query) {
-    list = list.filter((row) =>
-      columns.some(([key]) =>
-        String(getColumnValue(row, key))
-          .toLowerCase()
-          .includes(query)
-      )
-    );
-  }
-
-  // FROM DATE FILTER - UPPER INSOLE ISSUE DATE
-  if (fromDate) {
-    list = list.filter((row) => {
-      const date = getDateValue(row.upperinsoleissueddate);
-      return date && date >= fromDate;
-    });
-  }
-
-  // TO DATE FILTER - UPPER INSOLE ISSUE DATE
-  if (toDate) {
-    list = list.filter((row) => {
-      const date = getDateValue(row.upperinsoleissueddate);
-      return date && date <= toDate;
-    });
-  }
-
-  // AGEING DAYS FILTER
-  if (minDays !== "") {
-    list = list.filter((row) => {
-      const days = getAgeingDays(row.upperinsoleissueddate);
-      return days !== "" && days >= Number(minDays);
-    });
-  }
-
-  if (maxDays !== "") {
-    list = list.filter((row) => {
-      const days = getAgeingDays(row.upperinsoleissueddate);
-      return days !== "" && days <= Number(maxDays);
-    });
-  }
-
-  // SORT
-  list.sort((a, b) => {
-    const av = getColumnValue(a, sortField);
-    const bv = getColumnValue(b, sortField);
-
-    let comparison;
-
-    if (
-      av !== "" &&
-      bv !== "" &&
-      Number.isFinite(Number(av)) &&
-      Number.isFinite(Number(bv))
-    ) {
-      comparison = Number(av) - Number(bv);
-    } else {
-      comparison = String(av).localeCompare(
-        String(bv),
-        undefined,
-        {
-          numeric: true,
-          sensitivity: "base",
-        }
+    // SEARCH
+    if (query) {
+      list = list.filter((row) =>
+        columns.some(([key]) =>
+          String(getColumnValue(row, key))
+            .toLowerCase()
+            .includes(query)
+        )
       );
     }
 
-    return sortDirection === "asc"
-      ? comparison
-      : -comparison;
-  });
+    // FROM DATE
+    // ====================================================
+    // FROM DATE FILTER - UPPER INSOLE ISSUE DATE
+    // ====================================================
 
-  return list;
-}, [
-  rows,
-  search,
-  fromDate,
-  toDate,
-  minDays,
-  maxDays,
-  sortField,
-  sortDirection,
-]);
+    if (fromDate) {
+      list = list.filter((row) => {
+        const date = getDateValue(row.upperinsoleissueddate);
+
+        return date && date >= fromDate;
+      });
+    }
+
+    // ====================================================
+    // TO DATE FILTER - UPPER INSOLE ISSUE DATE
+    // ====================================================
+
+    if (toDate) {
+      list = list.filter((row) => {
+        const date = getDateValue(row.upperinsoleissueddate);
+
+        return date && date <= toDate;
+      });
+    }
+
+    // AGEING DAYS FILTER
+    if (minDays !== "") {
+      list = list.filter((row) => {
+        const days = getAgeingDays(row.upperinsoleissueddate);
+        return days !== "" && days >= Number(minDays);
+      });
+    }
+
+    if (maxDays !== "") {
+      list = list.filter((row) => {
+        const days = getAgeingDays(row.upperinsoleissueddate);
+        return days !== "" && days <= Number(maxDays);
+      });
+    }
+
+    // SORT
+    list.sort((a, b) => {
+      const av = getColumnValue(a, sortField);
+      const bv = getColumnValue(b, sortField);
+
+      let comparison;
+
+      if (
+        av !== "" &&
+        bv !== "" &&
+        Number.isFinite(Number(av)) &&
+        Number.isFinite(Number(bv))
+      ) {
+        comparison = Number(av) - Number(bv);
+      } else {
+        comparison = String(av).localeCompare(
+          String(bv),
+          undefined,
+          {
+            numeric: true,
+            sensitivity: "base",
+          }
+        );
+      }
+
+      return sortDirection === "asc"
+        ? comparison
+        : -comparison;
+    });
+
+    return list;
+  }, [
+    rows,
+    search,
+    fromDate,
+    toDate,
+    minDays,
+    maxDays,
+    sortField,
+    sortDirection,
+  ]);
 
   // ====================================================
   // RESET PAGE ON FILTER CHANGE
