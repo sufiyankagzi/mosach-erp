@@ -1,14 +1,20 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import axios from "axios";
 
 import {
   MdCloudUpload,
+  MdRefresh,
+  MdSearch,
   MdCheckCircle,
   MdError,
-  MdRefresh,
+  MdClose,
   MdKeyboardArrowUp,
   MdKeyboardArrowDown,
-  MdSearch,
+  MdFirstPage,
+  MdLastPage,
+  MdChevronLeft,
+  MdChevronRight,
+  MdDescription,
 } from "react-icons/md";
 
 // ======================================================
@@ -19,204 +25,156 @@ const API_BASE_URL =
   "https://mosach-erp-server.onrender.com/api/production-report";
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
-const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
 // ======================================================
-// DATABASE FIELD MAPPING
+// HELPERS
 // ======================================================
 
-const columns = [
-  ["upperstorestatus", "Status"],
-  ["reportdate", "Report Date"],
-  ["jobcard", "Job Card"],
-  ["sku", "SKU"],
-  // ["article", "Article"],
-  // ["colour", "Colour"],
-  // ["size", "Size"],
-  ["pair", "Pair"],
-  // ["packing", "Packing"],
-  ["carton", "Carton"],
-  ["cuttingreceiveddate", "Cutting Rec. Date"],
-  ["cuttingcontractor", "Cutting Contractor"],
-  ["uppercontractor", "Upper Contractor"],
-  ["upperissuedate", "Upper Iss. Date"],
-  ["upperreceiveddate", "Upper Rec. Date"],
-  ["upperreceivedpair", "Upper Rec. Pair"],
-  ["upperinsolecontractor", "Upper/Insole Contractor"],
-  ["upperinsoleissueddate", "Upper/Insole Iss. Date"],
-  ["upperstorereceiveddate", "Upper Store Rec. Date"],
-  ["upperstorepairqty", "Upper Store Pair Qty"],
-
-  // ["machineno", "Machine No."],
-  // ["machineissuedate", "Machine Issue Date"],
-  // ["machinepairqty", "Machine Pair Qty"],
-  // ["firstpair", "1st Pair"],
-  // ["secondpair", "2nd Pair"],
-  // ["rejection", "Rejection"],
-  // ["totalpair", "Total Pair"],
-];
-
-// ======================================================
-// HELPER FUNCTIONS
-// ======================================================
-
-const displayValue = (value, key = "") => {
-  if (value === null || value === undefined || value === "") {
-    return "-";
-  }
-
-  // Date columns ko DD-MM-YYYY mein display karein
-  if (key.toLowerCase().includes("date")) {
-    const dateString =
-      value instanceof Date
-        ? value.toISOString().slice(0, 10)
-        : String(value).slice(0, 10);
-
-    const parts = dateString.split("-");
-
-    if (parts.length === 3 && parts[0].length === 4) {
-      return `${parts[2]}-${parts[1]}-${parts[0]}`;
-    }
-
-  }
-
-  return String(value);
+const getValue = (value) => {
+  if (value === null || value === undefined || value === "") return "-";
+  return value;
 };
 
-const getDateValue = (value) => {
+const toNumber = (value) => {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : 0;
+};
+
+const getCarton = (row) => {
+  const pair = toNumber(row?.pair);
+  const packing = toNumber(row?.packing) || 24;
+
+  if (packing <= 0) return 0;
+
+  return Math.round(pair / packing);
+};
+
+const formatDate = (value) => {
+  if (!value) return "-";
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) return value;
+
+  const day = String(date.getDate()).padStart(2, "0");
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const year = date.getFullYear();
+
+  return `${day}-${month}-${year}`;
+};
+
+const getDateInputValue = (value) => {
   if (!value) return "";
 
-  if (value instanceof Date && !Number.isNaN(value.getTime())) {
-    return value.toISOString().slice(0, 10);
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return String(value).slice(0, 10);
   }
 
-  return String(value).slice(0, 10);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
 };
 
-const getErrorMessage = (error) => {
-  const responseData = error.response?.data;
+const getReportRows = (response) => {
+  const data = response?.data;
 
-  if (responseData?.message) {
-    const details = responseData.error;
+  if (Array.isArray(data)) return data;
 
+  if (Array.isArray(data?.data)) return data.data;
+  if (Array.isArray(data?.rows)) return data.rows;
+  if (Array.isArray(data?.records)) return data.records;
+  if (Array.isArray(data?.result)) return data.result;
 
-    return details
-      ? `${responseData.message} ${details}`
-      : responseData.message;
-
-
-  }
-
-  if (error.code === "ECONNABORTED") {
-    return "Request timeout ho gaya. Render server ko dobara try karein.";
-  }
-
-  if (!error.response) {
-    return "Server se connection nahi ho raha. Internet aur Render API check karein.";
-  }
-
-  return error.message || "Unexpected error occurred.";
-};
-
-const getReportRows = (responseData) => {
-  if (Array.isArray(responseData)) {
-    return responseData;
-  }
-
-  if (Array.isArray(responseData?.data)) {
-    return responseData.data;
-  }
-
-  if (Array.isArray(responseData?.rows)) {
-    return responseData.rows;
-  }
-
-  if (Array.isArray(responseData?.data?.rows)) {
-    return responseData.data.rows;
-  }
-
-  if (Array.isArray(responseData?.data?.records)) {
-    return responseData.data.records;
-  }
-
-  if (Array.isArray(responseData?.records)) {
-    return responseData.records;
-  }
+  if (Array.isArray(data?.data?.rows)) return data.data.rows;
+  if (Array.isArray(data?.data?.records)) return data.data.records;
 
   return [];
 };
 
-const getUploadResult = (payload, fileName) => {
-  const nestedData =
-    payload?.data &&
-      !Array.isArray(payload.data) &&
-      typeof payload.data === "object"
-      ? payload.data
-      : {};
+// ======================================================
+// COLUMNS
+// ======================================================
 
-  return {
-    ...payload,
-    ...nestedData,
-    fileName,
-  };
-};
+const COLUMNS = [
+  { key: "upperstorestatus", label: "Status", type: "status" },
+  { key: "reportdate", label: "Report Date", type: "date" },
+  { key: "jobcard", label: "Job Card" },
+  { key: "sku", label: "SKU" },
+  { key: "article", label: "Article" },
+  { key: "colour", label: "Colour" },
+  { key: "size", label: "Size" },
+  { key: "pair", label: "Pair", type: "number" },
+  { key: "packing", label: "Packing", type: "number" },
+  { key: "carton", label: "Carton", type: "carton" },
+  { key: "cuttingreceiveddate", label: "Cutting Received Date", type: "date" },
+  { key: "cuttingcontractor", label: "Cutting Contractor" },
+  { key: "uppercontractor", label: "Upper Contractor" },
+  { key: "upperissuedate", label: "Upper Issue Date", type: "date" },
+  { key: "upperreceiveddate", label: "Upper Received Date", type: "date" },
+  { key: "upperreceivedpair", label: "Upper Received Pair", type: "number" },
+  { key: "upperinsolecontractor", label: "Upper/Insole Contractor" },
+  { key: "upperinsoleissuedate", label: "Upper/Insole Issue Date", type: "date" },
+  { key: "upperstorereceiveddate", label: "Upper Store Received Date", type: "date" },
+  { key: "upperstorepairqty", label: "Upper Store Pair Qty", type: "number" },
+];
 
 // ======================================================
 // MAIN COMPONENT
 // ======================================================
 
 export default function ProductionUpload() {
-  const [file, setFile] = useState(null);
+  const fileInputRef = useRef(null);
+
+  const [rows, setRows] = useState([]);
+  const [selectedFile, setSelectedFile] = useState(null);
 
   const [loading, setLoading] = useState(false);
-  const [reportLoading, setReportLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
 
-  const [message, setMessage] = useState("");
   const [error, setError] = useState("");
-
-  const [result, setResult] = useState(null);
-  const [rows, setRows] = useState([]);
+  const [success, setSuccess] = useState("");
 
   const [search, setSearch] = useState("");
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
 
-  const [sortField, setSortField] = useState("jobcard");
-  const [sortDirection, setSortDirection] = useState("asc");
+  const [sortConfig, setSortConfig] = useState({
+    key: "reportdate",
+    direction: "desc",
+  });
 
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const [pageSize, setPageSize] = useState(25);
 
   // ====================================================
-  // LOAD PRODUCTION REPORT
+  // FETCH REPORT
   // ====================================================
 
   const fetchReport = useCallback(async () => {
-    setReportLoading(true);
-    setError("");
-
-
     try {
+      setLoading(true);
+      setError("");
+
       const response = await axios.get(API_BASE_URL, {
         timeout: 120000,
       });
 
-      if (response.data?.success === false) {
-        throw new Error(
-          response.data.message || "Production report load nahi hua."
-        );
-      }
-
-      const reportRows = getReportRows(response.data);
-
-      setRows(reportRows);
+      setRows(getReportRows(response));
     } catch (err) {
-      setError(getErrorMessage(err));
+      console.error("Production report error:", err);
+
+      setError(
+        err?.response?.data?.message ||
+          err?.response?.data?.error ||
+          "Production report load nahi ho paya."
+      );
     } finally {
-      setReportLoading(false);
+      setLoading(false);
     }
-
-
   }, []);
 
   useEffect(() => {
@@ -224,1584 +182,717 @@ export default function ProductionUpload() {
   }, [fetchReport]);
 
   // ====================================================
-  // SELECT EXCEL FILE
+  // FILE SELECT
   // ====================================================
 
-  const handleFile = (event) => {
-    const selected = event.target.files?.[0] || null;
+  const handleFileChange = (event) => {
+    const file = event.target.files?.[0];
 
-
-    setFile(null);
     setError("");
-    setMessage("");
-    setResult(null);
+    setSuccess("");
 
-    if (!selected) return;
-
-    if (!/\.(xlsx|xls)$/i.test(selected.name)) {
-      setError("Sirf .xlsx ya .xls Excel file select karein.");
-      event.target.value = "";
+    if (!file) {
+      setSelectedFile(null);
       return;
     }
 
-    if (selected.size > MAX_FILE_SIZE) {
-      setError("Excel file ka size maximum 10 MB hona chahiye.");
+    const extension = file.name.split(".").pop()?.toLowerCase();
+
+    if (!["xlsx", "xls"].includes(extension)) {
+      setError("Please Excel file select karein (.xlsx / .xls).");
       event.target.value = "";
+      setSelectedFile(null);
       return;
     }
 
-    setFile(selected);
+    if (file.size > 10 * 1024 * 1024) {
+      setError("File size 10 MB se kam honi chahiye.");
+      event.target.value = "";
+      setSelectedFile(null);
+      return;
+    }
 
-
+    setSelectedFile(file);
   };
 
   // ====================================================
   // UPLOAD EXCEL
   // ====================================================
 
-  const upload = async (event) => {
-    event.preventDefault();
-
-
-    if (!file) {
-      setError("Pehle Excel file select karein.");
+  const handleUpload = async () => {
+    if (!selectedFile) {
+      setError("Please Excel file select karein.");
       return;
     }
 
-    setLoading(true);
-    setError("");
-    setMessage("");
-    setResult(null);
-
     try {
+      setUploading(true);
+      setError("");
+      setSuccess("");
+
       const formData = new FormData();
-      formData.append("file", file);
+      formData.append("file", selectedFile);
 
       const response = await axios.post(
         `${API_BASE_URL}/upload`,
         formData,
         {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
           timeout: 120000,
         }
       );
 
-      const payload = response.data;
-
-      if (!payload || payload.success !== true) {
-        throw new Error(
-          payload?.message || "Production Excel upload failed."
-        );
-      }
-
-      const uploadResult = getUploadResult(payload, file.name);
-
-      setResult(uploadResult);
-
-      setMessage(
-        payload.message ||
-        "Production Excel successfully upload ho gayi."
+      setSuccess(
+        response?.data?.message ||
+          "Excel successfully upload ho gayi."
       );
 
-      setFile(null);
+      setSelectedFile(null);
 
-      const input = document.getElementById("production-file");
-
-      if (input) {
-        input.value = "";
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
       }
 
       await fetchReport();
-
-      setPage(1);
     } catch (err) {
-      setError(getErrorMessage(err));
+      console.error("Excel upload error:", err);
+
+      setError(
+        err?.response?.data?.message ||
+          err?.response?.data?.error ||
+          "Excel upload nahi ho payi. Please try again."
+      );
     } finally {
-      setLoading(false);
+      setUploading(false);
     }
-
-
   };
 
   // ====================================================
-  // SEARCH, FILTER AND SORT
+  // SEARCH + DATE FILTER
   // ====================================================
 
   const filteredRows = useMemo(() => {
-    let list = [...rows];
+    let result = [...rows];
 
+    if (search.trim()) {
+      const searchValue = search.trim().toLowerCase();
 
-    const query = search.trim().toLowerCase();
+      result = result.filter((row) =>
+        COLUMNS.some((column) => {
+          const value = row?.[column.key];
 
-    if (query) {
-      list = list.filter((row) =>
-        columns.some(([key]) =>
-          String(row[key] ?? "")
+          return String(value ?? "")
             .toLowerCase()
-            .includes(query)
-        )
+            .includes(searchValue);
+        })
       );
     }
 
     if (fromDate) {
-      list = list.filter(
-        (row) => getDateValue(row.reportdate) >= fromDate
-      );
+      result = result.filter((row) => {
+        const date = getDateInputValue(row.reportdate);
+        return date && date >= fromDate;
+      });
     }
 
     if (toDate) {
-      list = list.filter(
-        (row) => getDateValue(row.reportdate) <= toDate
-      );
+      result = result.filter((row) => {
+        const date = getDateInputValue(row.reportdate);
+        return date && date <= toDate;
+      });
     }
 
-    list.sort((a, b) => {
-      const av = a[sortField] ?? "";
-      const bv = b[sortField] ?? "";
+    return result;
+  }, [rows, search, fromDate, toDate]);
 
-      const an = Number(av);
-      const bn = Number(bv);
+  // ====================================================
+  // SORTING
+  // ====================================================
 
-      const bothNumeric =
-        av !== "" &&
-        bv !== "" &&
-        Number.isFinite(an) &&
-        Number.isFinite(bn);
+  const sortedRows = useMemo(() => {
+    const result = [...filteredRows];
 
-      let comparison;
+    result.sort((a, b) => {
+      const key = sortConfig.key;
 
-      if (bothNumeric) {
-        comparison = an - bn;
-      } else {
-        comparison = String(av).localeCompare(
-          String(bv),
-          undefined,
-          {
-            numeric: true,
-            sensitivity: "base",
-          }
-        );
+      let valueA = a?.[key];
+      let valueB = b?.[key];
+
+      if (key === "carton") {
+        valueA = getCarton(a);
+        valueB = getCarton(b);
       }
 
-      return sortDirection === "asc" ? comparison : -comparison;
+      if (key === "reportdate") {
+        valueA = new Date(valueA || 0).getTime();
+        valueB = new Date(valueB || 0).getTime();
+      } else if (
+        typeof valueA === "number" ||
+        typeof valueB === "number"
+      ) {
+        valueA = toNumber(valueA);
+        valueB = toNumber(valueB);
+      } else {
+        valueA = String(valueA ?? "").toLowerCase();
+        valueB = String(valueB ?? "").toLowerCase();
+      }
+
+      if (valueA < valueB) {
+        return sortConfig.direction === "asc" ? -1 : 1;
+      }
+
+      if (valueA > valueB) {
+        return sortConfig.direction === "asc" ? 1 : -1;
+      }
+
+      return 0;
     });
 
-    return list;
+    return result;
+  }, [filteredRows, sortConfig]);
 
+  const handleSort = (key) => {
+    setSortConfig((previous) => ({
+      key,
+      direction:
+        previous.key === key && previous.direction === "asc"
+          ? "desc"
+          : "asc",
+    }));
 
-  }, [
-    rows,
-    search,
-    fromDate,
-    toDate,
-    sortField,
-    sortDirection,
-  ]);
+    setPage(1);
+  };
+
+  // ====================================================
+  // TOTALS
+  // ====================================================
+
+  const totals = useMemo(() => {
+    return filteredRows.reduce(
+      (total, row) => {
+        total.pair += toNumber(row.pair);
+        total.carton += getCarton(row);
+
+        return total;
+      },
+      {
+        pair: 0,
+        carton: 0,
+      }
+    );
+  }, [filteredRows]);
+
+  // ====================================================
+  // PAGINATION
+  // ====================================================
+
+  const totalPages = Math.max(
+    1,
+    Math.ceil(sortedRows.length / pageSize)
+  );
+
+  const currentPage = Math.min(page, totalPages);
+
+  const startIndex = (currentPage - 1) * pageSize;
+  const endIndex = startIndex + pageSize;
+
+  const paginatedRows = sortedRows.slice(startIndex, endIndex);
 
   useEffect(() => {
     setPage(1);
   }, [search, fromDate, toDate, pageSize]);
 
-  const totalPages = Math.max(
-    1,
-    Math.ceil(filteredRows.length / pageSize)
-  );
-
-  const safePage = Math.min(page, totalPages);
-
-  const pageRows = filteredRows.slice(
-    (safePage - 1) * pageSize,
-    safePage * pageSize
-  );
-
   // ====================================================
-  // RESET FILTERS
+  // CLEAR FILTERS
   // ====================================================
 
-  const resetFilters = () => {
+  const clearFilters = () => {
     setSearch("");
     setFromDate("");
     setToDate("");
-    setSortField("jobcard");
-    setSortDirection("asc");
     setPage(1);
   };
 
-  const toggleSort = (field) => {
-    if (sortField === field) {
-      setSortDirection((direction) =>
-        direction === "asc" ? "desc" : "asc"
+  // ====================================================
+  // CELL DISPLAY
+  // ====================================================
+
+  const renderCell = (row, column) => {
+    const value = row?.[column.key];
+
+    if (column.type === "status") {
+      const completed =
+        Number(value) === 1 ||
+        String(value).toLowerCase() === "completed";
+
+      return completed ? (
+        <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2.5 py-1 text-xs font-bold text-green-700">
+          <MdCheckCircle size={15} />
+          Completed
+        </span>
+      ) : (
+        <span className="inline-flex items-center gap-1 rounded-full bg-orange-100 px-2.5 py-1 text-xs font-bold text-orange-700">
+          <MdError size={15} />
+          Pending
+        </span>
       );
-    } else {
-      setSortField(field);
-      setSortDirection("asc");
     }
+
+    if (column.type === "date") {
+      return formatDate(value);
+    }
+
+    if (column.type === "carton") {
+      return (
+        <span className="font-bold text-[#0A4B57]">
+          {getCarton(row).toLocaleString("en-IN")}
+        </span>
+      );
+    }
+
+    if (column.type === "number") {
+      return toNumber(value).toLocaleString("en-IN");
+    }
+
+    return getValue(value);
   };
 
   // ====================================================
-  // UPLOAD SUMMARY
+  // UI
   // ====================================================
 
-  const summary = [
-    {
-      title: "Rows Read",
-      value:
-        result?.totalExcelRows ??
-        result?.totalRowsRead ??
-        result?.totalRows ??
-        result?.rowsRead ??
-        0,
-      className: "bg-slate-100 text-slate-800",
-    },
-    {
-      title: "Inserted",
-      value: result?.insertedRows ?? 0,
-      className: "bg-emerald-50 text-emerald-800",
-    },
-    {
-      title: "Updated",
-      value: result?.updatedRows ?? 0,
-      className: "bg-blue-50 text-blue-800",
-    },
-    {
-      title: "Unchanged",
-      value: result?.unchangedRows ?? 0,
-      className: "bg-violet-50 text-violet-800",
-    },
-    {
-      title: "Skipped",
-      value:
-        (result?.skippedRows ?? 0) +
-        (result?.invalidJobCardRows ?? 0),
-      className: "bg-amber-50 text-amber-800",
-    },
-  ];
+  return (
+    <div className="min-h-screen bg-slate-100 p-3 sm:p-5">
+      <div className="mx-auto max-w-[1800px] space-y-4">
 
-  // ====================================================
-  // RENDER
-  // ====================================================
+        {/* HEADER */}
 
-  return (<main className="min-h-screen bg-slate-50 p-4 md:p-6"> <div className="mx-auto max-w-[1800px]">
-    {/* HEADER */}
+        <div className="flex flex-col justify-between gap-3 rounded-xl bg-white p-4 shadow-sm sm:flex-row sm:items-center">
+          <div>
+            <h1 className="text-xl font-extrabold text-[#0A4B57] sm:text-2xl">
+              Production Report Upload
+            </h1>
 
-
-    <header className="mb-6">
-      <h1 className="text-2xl font-bold text-slate-800">
-        Production Excel Upload
-      </h1>
-
-      <p className="mt-1 text-sm text-slate-500">
-        Upload Excel, save production records in MOSACH ERP,
-        and review records loaded from the database.
-      </p>
-    </header>
-
-    {/* UPLOAD SECTION */}
-
-    <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm md:p-7">
-      <form onSubmit={upload}>
-        <label
-          htmlFor="production-file"
-          className="flex min-h-40 cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 p-6 text-center transition hover:border-orange-400 hover:bg-orange-50"
-        >
-          <MdCloudUpload
-            size={44}
-            className="mb-2 text-orange-500"
-          />
-
-          <span className="font-semibold text-slate-700">
-            Excel file select karne ke liye click karein
-          </span>
-
-          <span className="mt-1 text-sm text-slate-500">
-            XLS / XLSX · Maximum 10 MB
-          </span>
-
-          <input
-            id="production-file"
-            type="file"
-            accept=".xlsx,.xls"
-            onChange={handleFile}
-            className="hidden"
-          />
-        </label>
-
-        {file && (
-          <p className="mt-3 rounded-lg bg-slate-100 p-3 text-sm text-slate-700">
-            Selected: <strong>{file.name}</strong> (
-            {(file.size / 1024).toFixed(1)} KB)
-          </p>
-        )}
-
-        {error && (
-          <div
-            role="alert"
-            className="mt-4 flex items-start gap-2 rounded-lg bg-red-50 p-3 text-sm text-red-700"
-          >
-            <MdError size={20} className="shrink-0" />
-            <span className="break-words">{error}</span>
+            <p className="mt-1 text-sm text-gray-500">
+              Upload Excel, save records in MOSACH ERP database and review imported rows.
+            </p>
           </div>
-        )}
-
-        {message && (
-          <div
-            role="status"
-            className="mt-4 flex items-start gap-2 rounded-lg bg-emerald-50 p-3 text-sm text-emerald-700"
-          >
-            <MdCheckCircle size={20} className="shrink-0" />
-            <span>{message}</span>
-          </div>
-        )}
-
-        <div className="mt-5 flex justify-end">
-          <button
-            type="submit"
-            disabled={!file || loading}
-            className="flex items-center gap-2 rounded-lg bg-orange-500 px-6 py-3 font-semibold text-white transition hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            <MdCloudUpload size={21} />
-            {loading ? "Uploading and saving..." : "Upload Excel"}
-          </button>
-        </div>
-      </form>
-
-      {/* UPLOAD RESULT SUMMARY */}
-
-      {result && (
-        <div className="mt-6">
-          <p className="mb-3 text-sm font-semibold text-slate-700">
-            Uploaded file: {result.fileName}
-          </p>
-
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
-            {summary.map((item) => (
-              <div
-                key={item.title}
-                className={`rounded-lg p-4 ${item.className}`}
-              >
-                <p className="text-sm">{item.title}</p>
-                <p className="mt-1 text-2xl font-bold">
-                  {item.value}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-    </section>
-
-    {/* DATABASE REPORT */}
-
-    <section className="mt-6 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-      <div className="flex flex-col gap-3 border-b p-5 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h2 className="text-lg font-bold text-slate-800">
-            Production Records
-          </h2>
-
-          <p className="text-sm text-slate-500">
-            Records loaded from the production report API.
-          </p>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="rounded-lg bg-orange-50 px-2 py-2 text-sm font-semibold text-orange-700">
-            {filteredRows.length} records
-          </span>
 
           <button
             type="button"
             onClick={fetchReport}
-            disabled={reportLoading}
-            className="flex items-center gap-2 rounded-lg border border-slate-300 px-2 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+            disabled={loading}
+            className="flex items-center justify-center gap-2 rounded-lg bg-[#0A4B57] px-4 py-2.5 text-sm font-bold text-white transition hover:bg-[#083b44] disabled:opacity-60"
           >
             <MdRefresh
-              size={19}
-              className={reportLoading ? "animate-spin" : ""}
+              size={20}
+              className={loading ? "animate-spin" : ""}
             />
-            {reportLoading ? "Loading..." : "Refresh"}
+            Refresh
           </button>
         </div>
-      </div>
 
-      {/* FILTERS */}
+        {/* UPLOAD SECTION */}
 
-      <div className="grid grid-cols-1 gap-3 border-b bg-slate-50 p-5 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="relative">
-          <MdSearch
-            size={20}
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-          />
+        <div className="rounded-xl bg-white p-4 shadow-sm">
+          <div className="mb-3 flex items-center gap-2">
+            <MdCloudUpload size={23} className="text-[#0A4B57]" />
 
-          <input
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Search all columns..."
-            className="w-full rounded-lg border border-slate-300 bg-white py-2.5 pl-10 pr-3 text-sm outline-none focus:border-orange-400"
-          />
+            <h2 className="font-bold text-gray-800">
+              Upload Production Excel
+            </h2>
+          </div>
+
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+            <div className="flex min-h-[48px] flex-1 items-center gap-3 rounded-lg border border-dashed border-gray-300 bg-gray-50 px-3">
+              <MdDescription
+                size={23}
+                className="shrink-0 text-[#0A4B57]"
+              />
+
+              <div className="min-w-0 flex-1">
+                {selectedFile ? (
+                  <>
+                    <p className="truncate text-sm font-bold text-gray-800">
+                      {selectedFile.name}
+                    </p>
+
+                    <p className="text-xs text-gray-500">
+                      {(selectedFile.size / 1024).toFixed(1)} KB
+                    </p>
+                  </>
+                ) : (
+                  <p className="text-sm text-gray-500">
+                    Excel file select karein (.xlsx / .xls)
+                  </p>
+                )}
+              </div>
+
+              {selectedFile && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedFile(null);
+
+                    if (fileInputRef.current) {
+                      fileInputRef.current.value = "";
+                    }
+                  }}
+                  className="text-gray-500 hover:text-red-600"
+                >
+                  <MdClose size={21} />
+                </button>
+              )}
+            </div>
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".xlsx,.xls"
+              onChange={handleFileChange}
+              className="hidden"
+              id="productionExcel"
+            />
+
+            <label
+              htmlFor="productionExcel"
+              className="cursor-pointer rounded-lg border border-[#0A4B57] px-5 py-3 text-center text-sm font-bold text-[#0A4B57] hover:bg-teal-50"
+            >
+              Choose Excel
+            </label>
+
+            <button
+              type="button"
+              onClick={handleUpload}
+              disabled={!selectedFile || uploading}
+              className="flex items-center justify-center gap-2 rounded-lg bg-[#EF8535] px-6 py-3 text-sm font-bold text-white hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <MdCloudUpload size={20} />
+
+              {uploading ? "Uploading..." : "Upload Excel"}
+            </button>
+          </div>
+
+          <p className="mt-3 text-xs text-gray-500">
+            Maximum file size: 10 MB. Carton is calculated row-wise using
+            Pair ÷ Packing and rounded to the nearest whole carton.
+          </p>
         </div>
 
-        <label className="text-xs font-semibold text-slate-600">
-          From Date
-          <input
-            type="date"
-            value={fromDate}
-            max={toDate || undefined}
-            onChange={(event) => setFromDate(event.target.value)}
-            className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-normal"
-          />
-        </label>
+        {/* MESSAGES */}
 
-        <label className="text-xs font-semibold text-slate-600">
-          To Date
-          <input
-            type="date"
-            value={toDate}
-            min={fromDate || undefined}
-            onChange={(event) => setToDate(event.target.value)}
-            className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-normal"
-          />
-        </label>
+        {error && (
+          <div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700">
+            <MdError size={20} className="mt-0.5 shrink-0" />
+            <span>{error}</span>
+          </div>
+        )}
 
-        <button
-          type="button"
-          onClick={resetFilters}
-          className="flex items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100"
-        >
-          <MdRefresh size={19} />
-          Reset Filters
-        </button>
-      </div>
+        {success && (
+          <div className="flex items-start gap-2 rounded-lg border border-green-200 bg-green-50 p-3 text-sm font-medium text-green-700">
+            <MdCheckCircle size={20} className="mt-0.5 shrink-0" />
+            <span>{success}</span>
+          </div>
+        )}
 
-      {/* TABLE */}
-      <div className="relative w-full overflow-auto overscroll-x-contain">
-        <table className="min-w-max border-separate border-spacing-0 text-left text-sm">
-          <thead>
-            <tr>
-              {/* # COLUMN */}
-              <th className="sticky top-0 left-0 z-50 w-[55px] min-w-[55px] border-b border-slate-600 bg-slate-800 px-2 py-2 text-white">
-                #
-              </th>
+        {/* FILTERS */}
 
-              {columns.map(([key, label]) => {
-                // Sticky columns through Carton. Offsets follow the current column order.
-                const stickyClass =
-                  key === "upperstorestatus"
-                    ? "md:sticky md:left-[55px] md:z-40 w-[80px] min-w-[80px] bg-slate-800"
-                    : key === "reportdate"
-                      ? "md:sticky md:left-[135px] md:z-40 w-[130px] min-w-[130px] bg-slate-800"
-                      : key === "jobcard"
-                        ? "md:sticky md:left-[265px] md:z-40 w-[130px] min-w-[130px] bg-slate-800"
-                        : key === "sku"
-                          ? "md:sticky md:left-[395px] md:z-40 w-[130px] min-w-[130px] bg-slate-800"
-                          : key === "pair"
-                            ? "md:sticky md:left-[525px] md:z-40 w-[100px] min-w-[100px] bg-slate-800"
-                            : key === "carton"
-                              ? "md:sticky md:left-[625px] md:z-40 w-[100px] min-w-[100px] bg-slate-800"
-                              : "";
+        <div className="rounded-xl bg-white p-4 shadow-sm">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
 
-                return (
-                  <th
-                    key={key}
-                    className={`sticky top-0 whitespace-nowrap border-b border-slate-600 bg-slate-800 px-2 py-2 text-white ${stickyClass}`}
-                  >
-                    <button
-                      type="button"
-                      onClick={() => toggleSort(key)}
-                      className="flex items-center gap-1 font-semibold hover:text-orange-300"
-                    >
-                      {label}
-                      {sortField === key &&
-                        (sortDirection === "asc" ? (
-                          <MdKeyboardArrowUp size={18} />
-                        ) : (
-                          <MdKeyboardArrowDown size={18} />
-                        ))}
-                    </button>
+            <div className="relative sm:col-span-2 xl:col-span-1">
+              <MdSearch
+                size={21}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+              />
+
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search Job Card, SKU, Article..."
+                className="h-11 w-full rounded-lg border border-gray-300 pl-10 pr-3 text-sm outline-none focus:border-[#0A4B57] focus:ring-1 focus:ring-[#0A4B57]"
+              />
+            </div>
+
+            <div>
+              <label className="mb-1 block text-xs font-bold text-gray-600">
+                From Date
+              </label>
+
+              <input
+                type="date"
+                value={fromDate}
+                onChange={(e) => setFromDate(e.target.value)}
+                className="h-11 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-[#0A4B57]"
+              />
+            </div>
+
+            <div>
+              <label className="mb-1 block text-xs font-bold text-gray-600">
+                To Date
+              </label>
+
+              <input
+                type="date"
+                value={toDate}
+                onChange={(e) => setToDate(e.target.value)}
+                className="h-11 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-[#0A4B57]"
+              />
+            </div>
+
+            <div className="flex items-end">
+              <button
+                type="button"
+                onClick={clearFilters}
+                className="flex h-11 w-full items-center justify-center gap-2 rounded-lg border border-gray-300 px-4 text-sm font-bold text-gray-600 hover:bg-gray-100"
+              >
+                <MdClose size={18} />
+                Clear Filters
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* SUMMARY CARDS */}
+
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <div className="rounded-xl bg-white p-4 shadow-sm">
+            <p className="text-xs font-bold uppercase text-gray-500">
+              Total Records
+            </p>
+
+            <p className="mt-2 text-2xl font-extrabold text-[#0A4B57]">
+              {filteredRows.length.toLocaleString("en-IN")}
+            </p>
+          </div>
+
+          <div className="rounded-xl bg-white p-4 shadow-sm">
+            <p className="text-xs font-bold uppercase text-gray-500">
+              Total Pair
+            </p>
+
+            <p className="mt-2 text-2xl font-extrabold text-[#0A4B57]">
+              {totals.pair.toLocaleString("en-IN")}
+            </p>
+          </div>
+
+          <div className="rounded-xl bg-white p-4 shadow-sm">
+            <p className="text-xs font-bold uppercase text-gray-500">
+              Total Carton
+            </p>
+
+            <p className="mt-2 text-2xl font-extrabold text-[#EF8535]">
+              {totals.carton.toLocaleString("en-IN")}
+            </p>
+          </div>
+
+          <div className="rounded-xl bg-white p-4 shadow-sm">
+            <p className="text-xs font-bold uppercase text-gray-500">
+              Page Records
+            </p>
+
+            <p className="mt-2 text-2xl font-extrabold text-gray-700">
+              {paginatedRows.length}
+            </p>
+          </div>
+        </div>
+
+        {/* GRID */}
+
+        <div className="overflow-hidden rounded-xl bg-white shadow-sm">
+          <div className="flex flex-col justify-between gap-2 border-b border-gray-200 p-4 sm:flex-row sm:items-center">
+            <h2 className="font-extrabold text-[#0A4B57]">
+              Production Records
+            </h2>
+
+            <div className="flex items-center gap-2 text-sm text-gray-600">
+              <span>Show</span>
+
+              <select
+                value={pageSize}
+                onChange={(e) => setPageSize(Number(e.target.value))}
+                className="rounded-md border border-gray-300 px-2 py-1.5 font-bold outline-none"
+              >
+                {PAGE_SIZE_OPTIONS.map((size) => (
+                  <option key={size} value={size}>
+                    {size}
+                  </option>
+                ))}
+              </select>
+
+              <span>records</span>
+            </div>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[1900px] border-collapse text-left text-sm">
+              <thead className="bg-[#0A4B57] text-white">
+                <tr>
+                  <th className="sticky left-0 z-20 w-12 bg-[#0A4B57] px-3 py-3 text-center">
+                    #
                   </th>
-                );
-              })}
-            </tr>
-          </thead>
 
-          <tbody>
-            {pageRows.length > 0 ? (
-              pageRows.map((row, index) => {
-                const stripe = index % 2 ? "bg-slate-50" : "bg-white";
-
-                return (
-                  <tr
-                    key={
-                      row.productionreportid ??
-                      `${row.jobcard ?? "job"}-${row.sku ?? "sku"}-${index}`
-                    }
-                    className="group transition hover:bg-orange-50"
-                  >
-                    {/* # COLUMN */}
-                    <td
-                      className={`sticky left-0 z-30 w-[55px] min-w-[55px] border-b border-slate-200 px-2 py-2 text-slate-500 ${stripe} group-hover:bg-orange-50`}
+                  {COLUMNS.map((column) => (
+                    <th
+                      key={column.key}
+                      onClick={() => handleSort(column.key)}
+                      className="cursor-pointer whitespace-nowrap px-3 py-3 font-bold hover:bg-[#083b44]"
                     >
-                      {(safePage - 1) * pageSize + index + 1}
+                      <div className="flex items-center gap-1">
+                        {column.label}
+
+                        {sortConfig.key === column.key && (
+                          sortConfig.direction === "asc" ? (
+                            <MdKeyboardArrowUp size={18} />
+                          ) : (
+                            <MdKeyboardArrowDown size={18} />
+                          )
+                        )}
+                      </div>
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+
+              <tbody>
+                {loading ? (
+                  <tr>
+                    <td
+                      colSpan={COLUMNS.length + 1}
+                      className="py-12 text-center font-semibold text-gray-500"
+                    >
+                      Loading production records...
+                    </td>
+                  </tr>
+                ) : paginatedRows.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan={COLUMNS.length + 1}
+                      className="py-12 text-center font-semibold text-gray-500"
+                    >
+                      No production records found.
+                    </td>
+                  </tr>
+                ) : (
+                  paginatedRows.map((row, index) => (
+                    <tr
+                      key={
+                        row.productionreportid ||
+                        row.jobcard ||
+                        `${startIndex + index}`
+                      }
+                      className="border-b border-gray-100 hover:bg-teal-50"
+                    >
+                      <td className="sticky left-0 z-10 bg-white px-3 py-3 text-center font-bold text-gray-600">
+                        {startIndex + index + 1}
+                      </td>
+
+                      {COLUMNS.map((column) => (
+                        <td
+                          key={column.key}
+                          className="whitespace-nowrap px-3 py-3 font-medium text-gray-700"
+                        >
+                          {renderCell(row, column)}
+                        </td>
+                      ))}
+                    </tr>
+                  ))
+                )}
+              </tbody>
+
+              {/* TOTAL ROW */}
+
+              {!loading && paginatedRows.length > 0 && (
+                <tfoot className="sticky bottom-0 bg-[#e7f2f2] font-extrabold text-[#0A4B57]">
+                  <tr>
+                    <td className="sticky left-0 z-10 bg-[#e7f2f2] px-3 py-3 text-center">
+                      TOTAL
                     </td>
 
-                    {columns.map(([key]) => {
-                      const stickyClass =
-                        key === "upperstorestatus"
-                          ? `md:sticky md:left-[55px] md:z-20 w-[80px] min-w-[80px] text-center ${stripe} group-hover:bg-orange-50`
-                          : key === "reportdate"
-                            ? `md:sticky md:left-[135px] md:z-20 w-[130px] min-w-[130px] ${stripe} group-hover:bg-orange-50`
-                            : key === "jobcard"
-                              ? `md:sticky md:left-[265px] md:z-20 w-[130px] min-w-[130px] font-semibold text-orange-700 ${stripe} group-hover:bg-orange-50`
-                              : key === "sku"
-                                ? `md:sticky md:left-[395px] md:z-20 w-[130px] min-w-[130px] text-slate-700 ${stripe} group-hover:bg-orange-50`
-                                : key === "pair"
-                                  ? `md:sticky md:left-[525px] md:z-20 w-[100px] min-w-[100px] ${stripe} group-hover:bg-orange-50`
-                                  : key === "carton"
-                                    ? `md:sticky md:left-[625px] md:z-20 w-[100px] min-w-[100px] ${stripe} group-hover:bg-orange-50`
-                                    : "text-slate-700";
-
-                      return (
-                        <td
-                          key={key}
-                          className={`whitespace-nowrap border-b border-slate-200 px-2 py-2 ${stickyClass}`}
-                        >
-                          {key === "upperstorestatus" ? (
-                            Number(row[key]) === 1 ? (
-                              <MdCheckCircle
-                                size={22}
-                                className="mx-auto text-green-600"
-                                title="Completed"
-                              />
-                            ) : (
-                              <span className="text-slate-400">-</span>
-                            )
-                          ) : key === "carton" &&
-                            row[key] !== null &&
-                            row[key] !== undefined &&
-                            row[key] !== "" ? (
-                            Math.round(Number(row[key]))
-                          ) : (
-                            displayValue(row[key], key)
-                          )}
-                        </td>
-                      );
-                    })}
+                    {COLUMNS.map((column) => (
+                      <td
+                        key={column.key}
+                        className="whitespace-nowrap px-3 py-3"
+                      >
+                        {column.key === "pair"
+                          ? totals.pair.toLocaleString("en-IN")
+                          : column.key === "carton"
+                          ? totals.carton.toLocaleString("en-IN")
+                          : ""}
+                      </td>
+                    ))}
                   </tr>
-                );
-              })
-            ) : (
-              <tr>
-                <td
-                  colSpan={columns.length + 1}
-                  className="px-2 py-12 text-center text-slate-500"
-                >
-                  {reportLoading
-                    ? "Loading production records..."
-                    : error
-                      ? "Records load nahi ho sake. Upar error check karein."
-                      : "No records found."}
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+                </tfoot>
+              )}
+            </table>
+          </div>
 
-      {/* PAGINATION */}
+          {/* PAGINATION */}
 
-      <div className="flex flex-col gap-3 border-t p-4 md:flex-row md:items-center md:justify-between">
-        <div className="flex flex-wrap items-center gap-2 text-sm text-slate-600">
-          <span>Rows per page</span>
+          <div className="flex flex-col justify-between gap-3 border-t border-gray-200 p-3 sm:flex-row sm:items-center">
+            <p className="text-sm font-medium text-gray-600">
+              Showing{" "}
+              {sortedRows.length === 0 ? 0 : startIndex + 1}
+              {" - "}
+              {Math.min(endIndex, sortedRows.length)}
+              {" of "}
+              {sortedRows.length.toLocaleString("en-IN")} records
+            </p>
 
-          <select
-            value={pageSize}
-            onChange={(event) =>
-              setPageSize(Number(event.target.value))
-            }
-            className="rounded-lg border border-slate-300 bg-white px-3 py-2"
-          >
-            {PAGE_SIZE_OPTIONS.map((size) => (
-              <option key={size} value={size}>
-                {size}
-              </option>
-            ))}
-          </select>
+            <div className="flex items-center justify-center gap-1">
+              <button
+                type="button"
+                disabled={currentPage === 1}
+                onClick={() => setPage(1)}
+                className="rounded-md border p-2 text-gray-600 hover:bg-gray-100 disabled:opacity-30"
+                title="First Page"
+              >
+                <MdFirstPage size={20} />
+              </button>
 
-          <span>
-            {filteredRows.length
-              ? `${(safePage - 1) * pageSize + 1}-${Math.min(
-                safePage * pageSize,
-                filteredRows.length
-              )} of ${filteredRows.length}`
-              : "0 records"}
-          </span>
+              <button
+                type="button"
+                disabled={currentPage === 1}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                className="rounded-md border p-2 text-gray-600 hover:bg-gray-100 disabled:opacity-30"
+                title="Previous"
+              >
+                <MdChevronLeft size={20} />
+              </button>
+
+              <span className="min-w-[90px] text-center text-sm font-bold text-[#0A4B57]">
+                {currentPage} / {totalPages}
+              </span>
+
+              <button
+                type="button"
+                disabled={currentPage >= totalPages}
+                onClick={() =>
+                  setPage((p) => Math.min(totalPages, p + 1))
+                }
+                className="rounded-md border p-2 text-gray-600 hover:bg-gray-100 disabled:opacity-30"
+                title="Next"
+              >
+                <MdChevronRight size={20} />
+              </button>
+
+              <button
+                type="button"
+                disabled={currentPage >= totalPages}
+                onClick={() => setPage(totalPages)}
+                className="rounded-md border p-2 text-gray-600 hover:bg-gray-100 disabled:opacity-30"
+                title="Last Page"
+              >
+                <MdLastPage size={20} />
+              </button>
+            </div>
+          </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            disabled={safePage <= 1}
-            onClick={() => setPage(1)}
-            className="rounded border px-3 py-2 disabled:opacity-40"
-          >
-            First
-          </button>
-
-          <button
-            type="button"
-            disabled={safePage <= 1}
-            onClick={() => setPage((current) => current - 1)}
-            className="rounded border px-3 py-2 disabled:opacity-40"
-          >
-            Previous
-          </button>
-
-          <span className="text-sm">
-            Page {safePage} / {totalPages}
-          </span>
-
-          <button
-            type="button"
-            disabled={safePage >= totalPages}
-            onClick={() => setPage((current) => current + 1)}
-            className="rounded border px-3 py-2 disabled:opacity-40"
-          >
-            Next
-          </button>
-
-          <button
-            type="button"
-            disabled={safePage >= totalPages}
-            onClick={() => setPage(totalPages)}
-            className="rounded border px-3 py-2 disabled:opacity-40"
-          >
-            Last
-          </button>
-        </div>
       </div>
-    </section>
-
-    {/* IMPORT NOTES */}
-
-    <div className="mt-5 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-      <strong>Import Notes:</strong>
-
-      <ul className="mt-2 list-disc space-y-1 pl-5">
-        <li>Excel file format XLS/XLSX hona chahiye.</li>
-        <li>Maximum file size 10 MB hai.</li>
-        <li>
-          Excel headings aur database field mapping backend controller
-          ke according honi chahiye.
-        </li>
-        <li>
-          Carton column Excel mein nahi hai; backend model iski value
-          Pair ÷ 24 ke hisaab se calculate karta hai.
-        </li>
-      </ul>
     </div>
-  </div>
-  </main>
-
-
   );
 }
-
-// import { useCallback, useEffect, useMemo, useState } from "react";
-// import axios from "axios";
-
-// import {
-//   MdCloudUpload,
-//   MdCheckCircle,
-//   MdError,
-//   MdRefresh,
-//   MdKeyboardArrowUp,
-//   MdKeyboardArrowDown,
-//   MdSearch,
-// } from "react-icons/md";
-
-// // ======================================================
-// // API CONFIGURATION
-// // ======================================================
-
-// const API_BASE_URL =
-//   "https://mosach-erp-server.onrender.com/api/production-report";
-
-// const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
-// const MAX_FILE_SIZE = 10 * 1024 * 1024;
-
-// // ======================================================
-// // DATABASE FIELD MAPPING
-// // ======================================================
-
-// const columns = [
-//   ["upperstorestatus", "Status"],
-//   ["jobcard", "Job Card"],
-//   ["sku", "SKU"],
-//   ["reportdate", "Report Date"],
-//   // ["article", "Article"],
-//   // ["colour", "Colour"],
-//   // ["size", "Size"],
-//   ["pair", "Pair"],
-//   // ["packing", "Packing"],
-//   ["carton", "Carton"],
-//   ["cuttingreceiveddate", "Cutting Rec. Date"],
-//   ["cuttingcontractor", "Cutting Contractor"],
-//   ["uppercontractor", "Upper Contractor"],
-//   ["upperissuedate", "Upper Issue Date"],
-//   ["upperreceiveddate", "Upper Received Date"],
-//   ["upperreceivedpair", "Upper Received Pair"],
-//   ["upperinsolecontractor", "Upper/Insole Contractor"],
-//   ["upperinsoleissueddate", "Upper/Insole Issued Date"],
-//   ["upperstorereceiveddate", "Upper Store Received Date"],
-//   ["upperstorepairqty", "Upper Store Pair Qty"],
-
-//   // ["machineno", "Machine No."],
-//   // ["machineissuedate", "Machine Issue Date"],
-//   // ["machinepairqty", "Machine Pair Qty"],
-//   // ["firstpair", "1st Pair"],
-//   // ["secondpair", "2nd Pair"],
-//   // ["rejection", "Rejection"],
-//   // ["totalpair", "Total Pair"],
-// ];
-
-// // ======================================================
-// // HELPER FUNCTIONS
-// // ======================================================
-
-// const displayValue = (value, key = "") => {
-//   if (value === null || value === undefined || value === "") {
-//     return "-";
-//   }
-
-//   // Date columns ko DD-MM-YYYY mein display karein
-//   if (key.toLowerCase().includes("date")) {
-//     const dateString =
-//       value instanceof Date
-//         ? value.toISOString().slice(0, 10)
-//         : String(value).slice(0, 10);
-
-//     const parts = dateString.split("-");
-
-//     if (parts.length === 3 && parts[0].length === 4) {
-//       return `${parts[2]}-${parts[1]}-${parts[0]}`;
-//     }
-
-//   }
-
-//   return String(value);
-// };
-
-// const getDateValue = (value) => {
-//   if (!value) return "";
-
-//   if (value instanceof Date && !Number.isNaN(value.getTime())) {
-//     return value.toISOString().slice(0, 10);
-//   }
-
-//   return String(value).slice(0, 10);
-// };
-
-// const getErrorMessage = (error) => {
-//   const responseData = error.response?.data;
-
-//   if (responseData?.message) {
-//     const details = responseData.error;
-
-
-//     return details
-//       ? `${responseData.message} ${details}`
-//       : responseData.message;
-
-
-//   }
-
-//   if (error.code === "ECONNABORTED") {
-//     return "Request timeout ho gaya. Render server ko dobara try karein.";
-//   }
-
-//   if (!error.response) {
-//     return "Server se connection nahi ho raha. Internet aur Render API check karein.";
-//   }
-
-//   return error.message || "Unexpected error occurred.";
-// };
-
-// const getReportRows = (responseData) => {
-//   if (Array.isArray(responseData)) {
-//     return responseData;
-//   }
-
-//   if (Array.isArray(responseData?.data)) {
-//     return responseData.data;
-//   }
-
-//   if (Array.isArray(responseData?.rows)) {
-//     return responseData.rows;
-//   }
-
-//   if (Array.isArray(responseData?.data?.rows)) {
-//     return responseData.data.rows;
-//   }
-
-//   if (Array.isArray(responseData?.data?.records)) {
-//     return responseData.data.records;
-//   }
-
-//   if (Array.isArray(responseData?.records)) {
-//     return responseData.records;
-//   }
-
-//   return [];
-// };
-
-// const getUploadResult = (payload, fileName) => {
-//   const nestedData =
-//     payload?.data &&
-//       !Array.isArray(payload.data) &&
-//       typeof payload.data === "object"
-//       ? payload.data
-//       : {};
-
-//   return {
-//     ...payload,
-//     ...nestedData,
-//     fileName,
-//   };
-// };
-
-// // ======================================================
-// // MAIN COMPONENT
-// // ======================================================
-
-// export default function ProductionUpload() {
-//   const [file, setFile] = useState(null);
-
-//   const [loading, setLoading] = useState(false);
-//   const [reportLoading, setReportLoading] = useState(false);
-
-//   const [message, setMessage] = useState("");
-//   const [error, setError] = useState("");
-
-//   const [result, setResult] = useState(null);
-//   const [rows, setRows] = useState([]);
-
-//   const [search, setSearch] = useState("");
-//   const [fromDate, setFromDate] = useState("");
-//   const [toDate, setToDate] = useState("");
-
-//   const [sortField, setSortField] = useState("jobcard");
-//   const [sortDirection, setSortDirection] = useState("asc");
-
-//   const [page, setPage] = useState(1);
-//   const [pageSize, setPageSize] = useState(10);
-
-//   // ====================================================
-//   // LOAD PRODUCTION REPORT
-//   // ====================================================
-
-//   const fetchReport = useCallback(async () => {
-//     setReportLoading(true);
-//     setError("");
-
-
-//     try {
-//       const response = await axios.get(API_BASE_URL, {
-//         timeout: 120000,
-//       });
-
-//       if (response.data?.success === false) {
-//         throw new Error(
-//           response.data.message || "Production report load nahi hua."
-//         );
-//       }
-
-//       const reportRows = getReportRows(response.data);
-
-//       setRows(reportRows);
-//     } catch (err) {
-//       setError(getErrorMessage(err));
-//     } finally {
-//       setReportLoading(false);
-//     }
-
-
-//   }, []);
-
-//   useEffect(() => {
-//     fetchReport();
-//   }, [fetchReport]);
-
-//   // ====================================================
-//   // SELECT EXCEL FILE
-//   // ====================================================
-
-//   const handleFile = (event) => {
-//     const selected = event.target.files?.[0] || null;
-
-
-//     setFile(null);
-//     setError("");
-//     setMessage("");
-//     setResult(null);
-
-//     if (!selected) return;
-
-//     if (!/\.(xlsx|xls)$/i.test(selected.name)) {
-//       setError("Sirf .xlsx ya .xls Excel file select karein.");
-//       event.target.value = "";
-//       return;
-//     }
-
-//     if (selected.size > MAX_FILE_SIZE) {
-//       setError("Excel file ka size maximum 10 MB hona chahiye.");
-//       event.target.value = "";
-//       return;
-//     }
-
-//     setFile(selected);
-
-
-//   };
-
-//   // ====================================================
-//   // UPLOAD EXCEL
-//   // ====================================================
-
-//   const upload = async (event) => {
-//     event.preventDefault();
-
-
-//     if (!file) {
-//       setError("Pehle Excel file select karein.");
-//       return;
-//     }
-
-//     setLoading(true);
-//     setError("");
-//     setMessage("");
-//     setResult(null);
-
-//     try {
-//       const formData = new FormData();
-//       formData.append("file", file);
-
-//       const response = await axios.post(
-//         `${API_BASE_URL}/upload`,
-//         formData,
-//         {
-//           timeout: 120000,
-//         }
-//       );
-
-//       const payload = response.data;
-
-//       if (!payload || payload.success !== true) {
-//         throw new Error(
-//           payload?.message || "Production Excel upload failed."
-//         );
-//       }
-
-//       const uploadResult = getUploadResult(payload, file.name);
-
-//       setResult(uploadResult);
-
-//       setMessage(
-//         payload.message ||
-//         "Production Excel successfully upload ho gayi."
-//       );
-
-//       setFile(null);
-
-//       const input = document.getElementById("production-file");
-
-//       if (input) {
-//         input.value = "";
-//       }
-
-//       await fetchReport();
-
-//       setPage(1);
-//     } catch (err) {
-//       setError(getErrorMessage(err));
-//     } finally {
-//       setLoading(false);
-//     }
-
-
-//   };
-
-//   // ====================================================
-//   // SEARCH, FILTER AND SORT
-//   // ====================================================
-
-//   const filteredRows = useMemo(() => {
-//     let list = [...rows];
-
-
-//     const query = search.trim().toLowerCase();
-
-//     if (query) {
-//       list = list.filter((row) =>
-//         columns.some(([key]) =>
-//           String(row[key] ?? "")
-//             .toLowerCase()
-//             .includes(query)
-//         )
-//       );
-//     }
-
-//     if (fromDate) {
-//       list = list.filter(
-//         (row) => getDateValue(row.reportdate) >= fromDate
-//       );
-//     }
-
-//     if (toDate) {
-//       list = list.filter(
-//         (row) => getDateValue(row.reportdate) <= toDate
-//       );
-//     }
-
-//     list.sort((a, b) => {
-//       const av = a[sortField] ?? "";
-//       const bv = b[sortField] ?? "";
-
-//       const an = Number(av);
-//       const bn = Number(bv);
-
-//       const bothNumeric =
-//         av !== "" &&
-//         bv !== "" &&
-//         Number.isFinite(an) &&
-//         Number.isFinite(bn);
-
-//       let comparison;
-
-//       if (bothNumeric) {
-//         comparison = an - bn;
-//       } else {
-//         comparison = String(av).localeCompare(
-//           String(bv),
-//           undefined,
-//           {
-//             numeric: true,
-//             sensitivity: "base",
-//           }
-//         );
-//       }
-
-//       return sortDirection === "asc" ? comparison : -comparison;
-//     });
-
-//     return list;
-
-
-//   }, [
-//     rows,
-//     search,
-//     fromDate,
-//     toDate,
-//     sortField,
-//     sortDirection,
-//   ]);
-
-//   useEffect(() => {
-//     setPage(1);
-//   }, [search, fromDate, toDate, pageSize]);
-
-//   const totalPages = Math.max(
-//     1,
-//     Math.ceil(filteredRows.length / pageSize)
-//   );
-
-//   const safePage = Math.min(page, totalPages);
-
-//   const pageRows = filteredRows.slice(
-//     (safePage - 1) * pageSize,
-//     safePage * pageSize
-//   );
-
-//   // ====================================================
-//   // RESET FILTERS
-//   // ====================================================
-
-//   const resetFilters = () => {
-//     setSearch("");
-//     setFromDate("");
-//     setToDate("");
-//     setSortField("jobcard");
-//     setSortDirection("asc");
-//     setPage(1);
-//   };
-
-//   const toggleSort = (field) => {
-//     if (sortField === field) {
-//       setSortDirection((direction) =>
-//         direction === "asc" ? "desc" : "asc"
-//       );
-//     } else {
-//       setSortField(field);
-//       setSortDirection("asc");
-//     }
-//   };
-
-//   // ====================================================
-//   // UPLOAD SUMMARY
-//   // ====================================================
-
-//   const summary = [
-//     {
-//       title: "Rows Read",
-//       value:
-//         result?.totalExcelRows ??
-//         result?.totalRowsRead ??
-//         result?.totalRows ??
-//         result?.rowsRead ??
-//         0,
-//       className: "bg-slate-100 text-slate-800",
-//     },
-//     {
-//       title: "Inserted",
-//       value: result?.insertedRows ?? 0,
-//       className: "bg-emerald-50 text-emerald-800",
-//     },
-//     {
-//       title: "Updated",
-//       value: result?.updatedRows ?? 0,
-//       className: "bg-blue-50 text-blue-800",
-//     },
-//     {
-//       title: "Unchanged",
-//       value: result?.unchangedRows ?? 0,
-//       className: "bg-violet-50 text-violet-800",
-//     },
-//     {
-//       title: "Skipped",
-//       value:
-//         (result?.skippedRows ?? 0) +
-//         (result?.invalidJobCardRows ?? 0),
-//       className: "bg-amber-50 text-amber-800",
-//     },
-//   ];
-
-//   // ====================================================
-//   // RENDER
-//   // ====================================================
-
-//   return (<main className="min-h-screen bg-slate-50 p-4 md:p-6"> <div className="mx-auto max-w-[1800px]">
-//     {/* HEADER */}
-
-
-//     <header className="mb-6">
-//       <h1 className="text-2xl font-bold text-slate-800">
-//         Production Excel Upload
-//       </h1>
-
-//       <p className="mt-1 text-sm text-slate-500">
-//         Upload Excel, save production records in MOSACH ERP,
-//         and review records loaded from the database.
-//       </p>
-//     </header>
-
-//     {/* UPLOAD SECTION */}
-
-//     <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm md:p-7">
-//       <form onSubmit={upload}>
-//         <label
-//           htmlFor="production-file"
-//           className="flex min-h-40 cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 p-6 text-center transition hover:border-orange-400 hover:bg-orange-50"
-//         >
-//           <MdCloudUpload
-//             size={44}
-//             className="mb-2 text-orange-500"
-//           />
-
-//           <span className="font-semibold text-slate-700">
-//             Excel file select karne ke liye click karein
-//           </span>
-
-//           <span className="mt-1 text-sm text-slate-500">
-//             XLS / XLSX · Maximum 10 MB
-//           </span>
-
-//           <input
-//             id="production-file"
-//             type="file"
-//             accept=".xlsx,.xls"
-//             onChange={handleFile}
-//             className="hidden"
-//           />
-//         </label>
-
-//         {file && (
-//           <p className="mt-3 rounded-lg bg-slate-100 p-3 text-sm text-slate-700">
-//             Selected: <strong>{file.name}</strong> (
-//             {(file.size / 1024).toFixed(1)} KB)
-//           </p>
-//         )}
-
-//         {error && (
-//           <div
-//             role="alert"
-//             className="mt-4 flex items-start gap-2 rounded-lg bg-red-50 p-3 text-sm text-red-700"
-//           >
-//             <MdError size={20} className="shrink-0" />
-//             <span className="break-words">{error}</span>
-//           </div>
-//         )}
-
-//         {message && (
-//           <div
-//             role="status"
-//             className="mt-4 flex items-start gap-2 rounded-lg bg-emerald-50 p-3 text-sm text-emerald-700"
-//           >
-//             <MdCheckCircle size={20} className="shrink-0" />
-//             <span>{message}</span>
-//           </div>
-//         )}
-
-//         <div className="mt-5 flex justify-end">
-//           <button
-//             type="submit"
-//             disabled={!file || loading}
-//             className="flex items-center gap-2 rounded-lg bg-orange-500 px-6 py-3 font-semibold text-white transition hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-50"
-//           >
-//             <MdCloudUpload size={21} />
-//             {loading ? "Uploading and saving..." : "Upload Excel"}
-//           </button>
-//         </div>
-//       </form>
-
-//       {/* UPLOAD RESULT SUMMARY */}
-
-//       {result && (
-//         <div className="mt-6">
-//           <p className="mb-3 text-sm font-semibold text-slate-700">
-//             Uploaded file: {result.fileName}
-//           </p>
-
-//           <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
-//             {summary.map((item) => (
-//               <div
-//                 key={item.title}
-//                 className={`rounded-lg p-4 ${item.className}`}
-//               >
-//                 <p className="text-sm">{item.title}</p>
-//                 <p className="mt-1 text-2xl font-bold">
-//                   {item.value}
-//                 </p>
-//               </div>
-//             ))}
-//           </div>
-//         </div>
-//       )}
-//     </section>
-
-//     {/* DATABASE REPORT */}
-
-//     <section className="mt-6 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-//       <div className="flex flex-col gap-3 border-b p-5 md:flex-row md:items-center md:justify-between">
-//         <div>
-//           <h2 className="text-lg font-bold text-slate-800">
-//             Production Records
-//           </h2>
-
-//           <p className="text-sm text-slate-500">
-//             Records loaded from the production report API.
-//           </p>
-//         </div>
-
-//         <div className="flex flex-wrap items-center gap-2">
-//           <span className="rounded-lg bg-orange-50 px-2 py-2 text-sm font-semibold text-orange-700">
-//             {filteredRows.length} records
-//           </span>
-
-//           <button
-//             type="button"
-//             onClick={fetchReport}
-//             disabled={reportLoading}
-//             className="flex items-center gap-2 rounded-lg border border-slate-300 px-2 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
-//           >
-//             <MdRefresh
-//               size={19}
-//               className={reportLoading ? "animate-spin" : ""}
-//             />
-//             {reportLoading ? "Loading..." : "Refresh"}
-//           </button>
-//         </div>
-//       </div>
-
-//       {/* FILTERS */}
-
-//       <div className="grid grid-cols-1 gap-3 border-b bg-slate-50 p-5 sm:grid-cols-2 lg:grid-cols-4">
-//         <div className="relative">
-//           <MdSearch
-//             size={20}
-//             className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-//           />
-
-//           <input
-//             value={search}
-//             onChange={(event) => setSearch(event.target.value)}
-//             placeholder="Search all columns..."
-//             className="w-full rounded-lg border border-slate-300 bg-white py-2.5 pl-10 pr-3 text-sm outline-none focus:border-orange-400"
-//           />
-//         </div>
-
-//         <label className="text-xs font-semibold text-slate-600">
-//           From Date
-//           <input
-//             type="date"
-//             value={fromDate}
-//             max={toDate || undefined}
-//             onChange={(event) => setFromDate(event.target.value)}
-//             className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-normal"
-//           />
-//         </label>
-
-//         <label className="text-xs font-semibold text-slate-600">
-//           To Date
-//           <input
-//             type="date"
-//             value={toDate}
-//             min={fromDate || undefined}
-//             onChange={(event) => setToDate(event.target.value)}
-//             className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-normal"
-//           />
-//         </label>
-
-//         <button
-//           type="button"
-//           onClick={resetFilters}
-//           className="flex items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100"
-//         >
-//           <MdRefresh size={19} />
-//           Reset Filters
-//         </button>
-//       </div>
-
-//       {/* TABLE */}
-
-//       <div className="w-full overflow-auto relative">
-//         <table className="min-w-max border-separate border-spacing-0 text-left text-sm">
-//           <thead className="bg-slate-800 text-white">
-//             <tr>
-//               {/* # COLUMN */}
-//               <th className="md:sticky md:left-0 md:z-40 min-w-[55px] bg-slate-800 px-2 py-2">
-//                 #
-//               </th>
-
-
-//               {columns.map(([key, label]) => (
-//                 <th
-//                   key={key}
-//                   className={`whitespace-nowrap px-2 py-2 ${key === "upperstorestatus"
-//                       ? "md:sticky md:left-[55px] md:z-30 min-w-[80px] bg-slate-800"
-//                       : key === "jobcard"
-//                         ? "md:sticky md:left-[135px] md:z-30 min-w-[130px] bg-slate-800"
-//                         : key === "sku"
-//                           ? "md:sticky md:left-[265px] md:z-30 min-w-[130px] bg-slate-800"
-//                           : ""
-//                     }`}
-//                 >
-//                   <button
-//                     type="button"
-//                     onClick={() => toggleSort(key)}
-//                     className="flex items-center gap-1 font-semibold hover:text-orange-300"
-//                   >
-//                     {label}
-
-//                     {sortField === key &&
-//                       (sortDirection === "asc" ? (
-//                         <MdKeyboardArrowUp size={18} />
-//                       ) : (
-//                         <MdKeyboardArrowDown size={18} />
-//                       ))}
-//                   </button>
-//                 </th>
-//               ))}
-
-
-//             </tr>
-//           </thead>
-
-
-//           <tbody>
-//             {pageRows.length > 0 ? (
-//               pageRows.map((row, index) => (
-//                 <tr
-//                   key={
-//                     row.productionreportid ??
-//                     `${row.jobcard ?? "job"}-${row.sku ?? "sku"}-${index}`
-//                   }
-//                   className={`border-b border-slate-200 transition ${index % 2 ? "bg-slate-50" : "bg-white"
-//                     } hover:bg-orange-50`}
-//                 >
-//                   {/* # COLUMN */}
-//                   <td
-//                     className={`md:sticky md:left-0 md:z-20 min-w-[55px] px-2 py-2 text-slate-500 ${index % 2 ? "bg-slate-50" : "bg-white"
-//                       }`}
-//                   >
-//                     {(safePage - 1) * pageSize + index + 1}
-//                   </td>
-
-
-//                   {columns.map(([key]) => (
-//                     <td
-//                       key={key}
-//                       className={`whitespace-nowrap px-2 py-2 ${key === "upperstorestatus"
-//                           ? `md:sticky md:left-[55px] md:z-20 min-w-[80px] text-center ${index % 2 ? "bg-slate-50" : "bg-white"
-//                           }`
-//                           : key === "jobcard"
-//                             ? `md:sticky md:left-[135px] md:z-20 min-w-[130px] font-semibold text-orange-700 ${index % 2 ? "bg-slate-50" : "bg-white"
-//                             }`
-//                             : key === "sku"
-//                               ? `md:sticky md:left-[265px] md:z-20 min-w-[130px] text-slate-700 ${index % 2 ? "bg-slate-50" : "bg-white"
-//                               }`
-//                               : key === "jobcard"
-//                                 ? "font-semibold text-orange-700"
-//                                 : "text-slate-700"
-//                         }`}
-//                     >
-//                       {/* STATUS ICON */}
-//                       {key === "upperstorestatus" ? (
-//                         Number(row[key]) === 1 ? (
-//                           <MdCheckCircle
-//                             size={22}
-//                             className="mx-auto text-green-600"
-//                             title="Completed"
-//                           />
-//                         ) : (
-//                           <span className="text-slate-400">-</span>
-//                         )
-//                       ) : key === "carton" &&
-//                         row[key] !== null &&
-//                         row[key] !== undefined &&
-//                         row[key] !== "" ? (
-//                         /* CARTON DECIMAL REMOVE */
-//                         Math.round(Number(row[key]))
-//                       ) : (
-//                         /* DATE FORMAT DD-MM-YYYY */
-//                         displayValue(row[key], key)
-//                       )}
-//                     </td>
-//                   ))}
-//                 </tr>
-//               ))
-
-
-//             ) : (<tr>
-//               <td
-//                 colSpan={columns.length + 1}
-//                 className="px-2 py-12 text-center text-slate-500"
-//               >
-//                 {reportLoading
-//                   ? "Loading production records..."
-//                   : error
-//                     ? "Records load nahi ho sake. Upar error check karein."
-//                     : "No records found."} </td> </tr>
-//             )}
-
-//           </tbody>
-
-
-//         </table>
-//       </div>
-
-//       {/* PAGINATION */}
-
-//       <div className="flex flex-col gap-3 border-t p-4 md:flex-row md:items-center md:justify-between">
-//         <div className="flex flex-wrap items-center gap-2 text-sm text-slate-600">
-//           <span>Rows per page</span>
-
-//           <select
-//             value={pageSize}
-//             onChange={(event) =>
-//               setPageSize(Number(event.target.value))
-//             }
-//             className="rounded-lg border border-slate-300 bg-white px-3 py-2"
-//           >
-//             {PAGE_SIZE_OPTIONS.map((size) => (
-//               <option key={size} value={size}>
-//                 {size}
-//               </option>
-//             ))}
-//           </select>
-
-//           <span>
-//             {filteredRows.length
-//               ? `${(safePage - 1) * pageSize + 1}-${Math.min(
-//                 safePage * pageSize,
-//                 filteredRows.length
-//               )} of ${filteredRows.length}`
-//               : "0 records"}
-//           </span>
-//         </div>
-
-//         <div className="flex flex-wrap items-center gap-2">
-//           <button
-//             type="button"
-//             disabled={safePage <= 1}
-//             onClick={() => setPage(1)}
-//             className="rounded border px-3 py-2 disabled:opacity-40"
-//           >
-//             First
-//           </button>
-
-//           <button
-//             type="button"
-//             disabled={safePage <= 1}
-//             onClick={() => setPage((current) => current - 1)}
-//             className="rounded border px-3 py-2 disabled:opacity-40"
-//           >
-//             Previous
-//           </button>
-
-//           <span className="text-sm">
-//             Page {safePage} / {totalPages}
-//           </span>
-
-//           <button
-//             type="button"
-//             disabled={safePage >= totalPages}
-//             onClick={() => setPage((current) => current + 1)}
-//             className="rounded border px-3 py-2 disabled:opacity-40"
-//           >
-//             Next
-//           </button>
-
-//           <button
-//             type="button"
-//             disabled={safePage >= totalPages}
-//             onClick={() => setPage(totalPages)}
-//             className="rounded border px-3 py-2 disabled:opacity-40"
-//           >
-//             Last
-//           </button>
-//         </div>
-//       </div>
-//     </section>
-
-//     {/* IMPORT NOTES */}
-
-//     <div className="mt-5 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-//       <strong>Import Notes:</strong>
-
-//       <ul className="mt-2 list-disc space-y-1 pl-5">
-//         <li>Excel file format XLS/XLSX hona chahiye.</li>
-//         <li>Maximum file size 10 MB hai.</li>
-//         <li>
-//           Excel headings aur database field mapping backend controller
-//           ke according honi chahiye.
-//         </li>
-//         <li>
-//           Carton column Excel mein nahi hai; backend model iski value
-//           Pair ÷ 24 ke hisaab se calculate karta hai.
-//         </li>
-//       </ul>
-//     </div>
-//   </div>
-//   </main>
-
-
-//   );
-// }
