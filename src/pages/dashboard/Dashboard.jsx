@@ -203,11 +203,21 @@ export default function Dashboard() {
       }
 
       // PENDING CARTON CALCULATION
+      // else if (!isBlankPair && pair === 0) {
+      //   grouped[skuKey].pendingCarton += toNumber(
+      //     row.carton
+      //   );
+      // }
       else if (!isBlankPair && pair === 0) {
-        grouped[skuKey].pendingCarton += toNumber(
-          row.carton
-        );
-      }
+    const totalPair = toNumber(row.pair);
+    const packing = toNumber(row.packing);
+
+    if (totalPair > 0 && packing > 0) {
+      grouped[skuKey].pendingCarton += Math.round(
+        totalPair / packing
+      );
+    }
+  }
     });
 
     return Object.values(grouped)
