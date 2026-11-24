@@ -25,6 +25,7 @@ const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 
 const columns = [
   ["upperstorestatus", "Status"],
+  ["ageingdays", "Days"],
   ["reportdate", "Report Date"],
   ["jobcard", "Job Card"],
   ["sku", "SKU"],
@@ -35,13 +36,10 @@ const columns = [
   ["uppercontractor", "Upper Cont."],
   ["upperissuedate", "UID"],
   ["upperreceiveddate", "URD"],
-  // ["upperreceivedpair", "Upper Rec. Pair"],
   ["upperreceivedctn", "URC"],
   ["upperinsolecontractor", "Upper/Insole Stitch"],
   ["upperinsoleissueddate", "UISD"],
-  ["ageingdays", "Days"],
   ["upperstorereceiveddate", "USRD"],
-  // ["upperstorepairqty", "Upper Store Pair Qty"],
   ["upperstorectn", "USC"],
 ];
 
@@ -53,12 +51,12 @@ const INDEX_COLUMN_WIDTH = 48;
 
 const STICKY_COLUMN_WIDTHS = {
   upperstorestatus: 65,
+  ageingdays: 75,
   reportdate: 105,
   jobcard: 110,
   sku: 240,
   pair: 75,
   carton: 75,
-  ageingdays: 75,
 };
 
 // Automatically calculate left positions.
@@ -124,6 +122,35 @@ const getDateValue = (value) => {
 // ======================================================
 // CTN CONVERSION WITH ROUNDING
 // ======================================================
+// ======================================================
+// GET PACKING
+// ======================================================
+
+const getPacking = (row) => {
+  if (!row) return 24;
+
+  const fields = [
+    "packing",
+    "packingqty",
+    "packing_qty",
+    "packingquantity",
+    "packingQuantity",
+    "packingpercarton",
+    "packing_per_carton",
+    "pairspercarton",
+    "pairs_per_carton",
+  ];
+
+  for (const field of fields) {
+    const value = Number(row[field]);
+
+    if (Number.isFinite(value) && value > 0) {
+      return value;
+    }
+  }
+
+  return 24;
+};
 
 const getRoundedCTN = (pairQty, packing) => {
   if (
@@ -165,30 +192,44 @@ const getAgeingDays = (value) => {
 // GET COLUMN VALUE
 // ======================================================
 
+// ======================================================
+// GET COLUMN VALUE
+// ======================================================
+
 const getColumnValue = (row, key) => {
+  if (!row) return "";
+
+  // AGEING DAYS
   if (key === "ageingdays") {
-    return getAgeingDays(row?.upperinsoleissueddate);
+    return getAgeingDays(row.upperinsoleissueddate);
   }
 
-  // Upper Received CTN
+  // MAIN CARTON = PAIR / PACKING
+  if (key === "carton") {
+    return getRoundedCTN(
+      row.pair,
+      getPacking(row)
+    );
+  }
+
+  // UPPER RECEIVED CARTON
   if (key === "upperreceivedctn") {
     return getRoundedCTN(
-      row?.upperreceivedpair,
-      row?.packing
+      row.upperreceivedpair,
+      getPacking(row)
     );
   }
 
-  // Upper Store CTN
+  // UPPER STORE CARTON
   if (key === "upperstorectn") {
     return getRoundedCTN(
-      row?.upperstorepairqty,
-      row?.packing
+      row.upperstorepairqty,
+      getPacking(row)
     );
   }
 
-  return row?.[key] ?? "";
+  return row[key] ?? "";
 };
-
 // ======================================================
 // DISPLAY VALUE
 // ======================================================
@@ -919,10 +960,9 @@ export default function ProductionReport() {
                       {key === "pair"
                         ? filteredRows.reduce((sum, row) => sum + (Number(row.pair) || 0), 0).toLocaleString("en-IN")
                         : key === "carton"
-                        ? filteredRows.reduce((sum, row) => {
-                            const carton = Number(row.carton);
-                            return sum + (Number.isFinite(carton) ? Math.round(carton) : 0);
-                          }, 0).toLocaleString("en-IN")
+  ? filteredRows.reduce((sum, row) => {
+      return sum + Number(getColumnValue(row, "carton") || 0);
+    }, 0).toLocaleString("en-IN")
                         : key === "upperstorestatus"
                         ? "TOTAL"
                         : ""}
