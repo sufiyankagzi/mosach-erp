@@ -208,7 +208,11 @@ export default function Dashboard() {
       //     row.carton
       //   );
       // }
-      else if (!isBlankPair && pair === 0) {
+      else if (
+  !isBlankPair &&
+  pair === 0 &&
+  String(row.cuttingcontractor || "").trim() !== ""
+) {
     const totalPair = toNumber(row.pair);
     const packing = toNumber(row.packing);
 
