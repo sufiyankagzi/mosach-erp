@@ -1,4 +1,5 @@
 
+import * as XLSX from "xlsx";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import axios from "axios";
 
@@ -242,6 +243,64 @@ export default function ProductionReport() {
   const [pageSize, setPageSize] = useState(10);
 
   const [selectedRow, setSelectedRow] = useState(null);
+
+  // ======================================================
+// EXPORT EXCEL
+// ======================================================
+
+const exportExcel = () => {
+  if (!sortedRows.length) {
+    alert("Export karne ke liye koi record available nahi hai.");
+    return;
+  }
+
+  const excelData = sortedRows.map((row, index) => {
+    const record = {
+      "#": index + 1,
+    };
+
+    columns.forEach(([key, label]) => {
+      let value = getColumnValue(row, key);
+
+      if (key === "upperstorestatus") {
+        value = Number(value) === 1 ? "Completed" : "Pending";
+      } else if (dateColumns.includes(key)) {
+        value = formatDate(value);
+      } else {
+        value = value ?? "";
+      }
+
+      record[label] = value;
+    });
+
+    return record;
+  });
+
+  const worksheet = XLSX.utils.json_to_sheet(excelData);
+
+  // Column widths
+  worksheet["!cols"] = [
+    { wch: 7 },
+    ...columns.map(([key, label]) => ({
+      wch: Math.max(label.length + 3, 15),
+    })),
+  ];
+
+  const workbook = XLSX.utils.book_new();
+
+  XLSX.utils.book_append_sheet(
+    workbook,
+    worksheet,
+    "Production Report"
+  );
+
+  const today = new Date().toISOString().slice(0, 10);
+
+  XLSX.writeFile(
+    workbook,
+    `Production_Report_${today}.xlsx`
+  );
+};
 
   // ====================================================
   // FETCH REPORT
@@ -573,7 +632,7 @@ export default function ProductionReport() {
 
       {/* PAGE HEADER */}
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      {/* <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold text-[#0A4B57] sm:text-2xl">
             Production Report
@@ -596,7 +655,46 @@ export default function ProductionReport() {
           />
           Refresh
         </button>
-      </div>
+      </div> */}
+      <div className="flex flex-wrap items-center gap-2">
+
+  {/* PDF BUTTON */}
+
+  <button
+    type="button"
+    onClick={() => window.print()}
+    className="inline-flex items-center gap-2 rounded-lg bg-orange-500 px-4 py-2.5 text-sm font-bold text-white shadow transition hover:bg-orange-600"
+  >
+    PDF
+  </button>
+
+  {/* EXCEL BUTTON */}
+
+  <button
+    type="button"
+    onClick={exportExcel}
+    disabled={loading || sortedRows.length === 0}
+    className="inline-flex items-center gap-2 rounded-lg bg-orange-500 px-4 py-2.5 text-sm font-bold text-white shadow transition hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-50"
+  >
+    Excel
+  </button>
+
+  {/* REFRESH BUTTON */}
+
+  <button
+    type="button"
+    onClick={fetchReport}
+    disabled={loading}
+    className="inline-flex items-center gap-2 rounded-lg bg-[#0A4B57] px-4 py-2.5 text-sm font-semibold text-white shadow transition hover:bg-[#083c46] disabled:cursor-not-allowed disabled:opacity-60"
+  >
+    <MdRefresh
+      size={19}
+      className={loading ? "animate-spin" : ""}
+    />
+    Refresh
+  </button>
+
+</div>
 
       {/* FILTER SECTION */}
 
