@@ -310,6 +310,7 @@ export default function ProductionReport() {
   const [error, setError] = useState("");
 
   const [search, setSearch] = useState("");
+  const [articleNoSearch, setArticleNoSearch] = useState("");
 
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
@@ -391,6 +392,23 @@ export default function ProductionReport() {
       );
     }
 
+    // ARTICLE NO SEARCH ONLY
+    // Production report data may use "article", "articleno" or "article_no".
+    const articleQuery = articleNoSearch.trim().toLowerCase();
+
+    if (articleQuery) {
+      list = list.filter((row) => {
+        const articleNo =
+          row.articleno ??
+          row.articleNo ??
+          row.article_no ??
+          row.article ??
+          "";
+
+        return String(articleNo).toLowerCase().includes(articleQuery);
+      });
+    }
+
     // FROM DATE
     // ====================================================
     // FROM DATE FILTER - UPPER INSOLE ISSUE DATE
@@ -465,6 +483,7 @@ export default function ProductionReport() {
   }, [
     rows,
     search,
+    articleNoSearch,
     fromDate,
     toDate,
     minDays,
@@ -479,7 +498,7 @@ export default function ProductionReport() {
 
   useEffect(() => {
     setPage(1);
-  }, [search, fromDate, toDate, minDays, maxDays, pageSize]);
+  }, [search, articleNoSearch, fromDate, toDate, minDays, maxDays, pageSize]);
 
   // ====================================================
   // PAGINATION
@@ -520,6 +539,7 @@ export default function ProductionReport() {
 
   const resetFilters = () => {
     setSearch("");
+    setArticleNoSearch("");
 
     setFromDate("");
     setToDate("");
@@ -618,6 +638,23 @@ export default function ProductionReport() {
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Search all columns..."
+              className="w-full rounded-lg border border-slate-300 py-2.5 pl-10 pr-3 text-sm outline-none focus:border-orange-400"
+            />
+          </div>
+
+          <div className="relative">
+            <label className="mb-1 block text-xs font-semibold text-slate-600">
+              Article No
+            </label>
+            <MdSearch
+              size={20}
+              className="absolute left-3 top-[2.35rem] -translate-y-1/2 text-slate-400"
+            />
+            <input
+              type="text"
+              value={articleNoSearch}
+              onChange={(event) => setArticleNoSearch(event.target.value)}
+              placeholder="Search Article No only..."
               className="w-full rounded-lg border border-slate-300 py-2.5 pl-10 pr-3 text-sm outline-none focus:border-orange-400"
             />
           </div>
