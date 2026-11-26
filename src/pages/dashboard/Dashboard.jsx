@@ -12,6 +12,7 @@ import {
   MdSearch,
   MdCheckCircle,
   MdPendingActions,
+  MdFileDownload,
 } from "react-icons/md";
 
 // ======================================================
@@ -39,10 +40,15 @@ const toNumber = (value) => {
   return Number.isFinite(number) ? number : 0;
 };
 
-const formatNumber = (value) =>
-  Number(value || 0).toLocaleString("en-IN", {
+const formatNumber = (value) => {
+  const number = Number(value || 0);
+
+  if (!Number.isFinite(number) || number === 0) return "-";
+
+  return number.toLocaleString("en-IN", {
     maximumFractionDigits: 0,
   });
+};
 
 const getRowsFromResponse = (response) => {
   const data = response?.data;
@@ -285,6 +291,86 @@ export default function Dashboard() {
   }, [filteredSummary]);
 
   // ====================================================
+  // EXCEL EXPORT
+  // ====================================================
+
+  const exportToExcel = useCallback(() => {
+    const escapeHtml = (value) =>
+      String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+
+    const reportRows = filteredSummary
+      .map(
+        (item, index) => `
+          <tr>
+            <td>${index + 1}</td>
+            <td>${escapeHtml(item.sku)}</td>
+            <td>${item.toCut || 0}</td>
+            <td>${item.receivedCarton || 0}</td>
+            <td>${item.pendingCarton || 0}</td>
+          </tr>`
+      )
+      .join("");
+
+    const excelHtml = `
+      <html>
+        <head>
+          <meta charset="UTF-8" />
+          <style>
+            body { font-family: Arial, sans-serif; }
+            table { border-collapse: collapse; }
+            th, td { border: 1px solid #777; padding: 7px 10px; }
+            th { background: #0A4B57; color: #ffffff; font-weight: bold; }
+            .total { font-weight: bold; background: #eeeeee; }
+            .number { mso-number-format: "#,##0"; text-align: right; }
+          </style>
+        </head>
+        <body>
+          <h2>MOSACH ERP - Production Dashboard</h2>
+          <p>SKU Wise To Cut, Upper Store Carton & Inline Carton Summary</p>
+          <table>
+            <thead>
+              <tr>
+                <th>Sr. No.</th>
+                <th>SKU</th>
+                <th>To Cut</th>
+                <th>Upper Store Carton</th>
+                <th>Inline Carton</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${reportRows}
+              <tr class="total">
+                <td colspan="2">TOTAL</td>
+                <td class="number">${totals.toCut}</td>
+                <td class="number">${totals.receivedCarton}</td>
+                <td class="number">${totals.pendingCarton}</td>
+              </tr>
+            </tbody>
+          </table>
+        </body>
+      </html>`;
+
+    const blob = new Blob(["\\ufeff", excelHtml], {
+      type: "application/vnd.ms-excel;charset=utf-8;",
+    });
+
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    const date = new Date().toISOString().slice(0, 10);
+
+    link.href = url;
+    link.download = `MOSACH_Production_Dashboard_${date}.xls`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }, [filteredSummary, totals]);
+
+  // ====================================================
   // PAGINATION
   // ====================================================
 
@@ -362,20 +448,31 @@ export default function Dashboard() {
             </p>
           </div>
 
-          <button
-            type="button"
-            onClick={fetchData}
-            disabled={loading}
-            className="flex items-center justify-center gap-2 bg-[#0A4B57] hover:bg-[#083c45] disabled:opacity-60 text-white px-5 py-2.5 rounded-lg text-sm font-semibold transition w-full sm:w-auto"
-          >
-            <MdRefresh
-              className={`text-lg ${
-                loading ? "animate-spin" : ""
-              }`}
-            />
+          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+            <button
+              type="button"
+              onClick={exportToExcel}
+              disabled={loading || filteredSummary.length === 0}
+              className="flex items-center justify-center gap-2 bg-[#EF8535] hover:bg-[#df7628] disabled:opacity-50 text-white px-5 py-2.5 rounded-lg text-sm font-semibold transition w-full sm:w-auto"
+            >
+              <MdFileDownload className="text-lg" />
+              Excel
+            </button>
 
-            Refresh
-          </button>
+            <button
+              type="button"
+              onClick={fetchData}
+              disabled={loading}
+              className="flex items-center justify-center gap-2 bg-[#0A4B57] hover:bg-[#083c45] disabled:opacity-60 text-white px-5 py-2.5 rounded-lg text-sm font-semibold transition w-full sm:w-auto"
+            >
+              <MdRefresh
+                className={`text-lg ${
+                  loading ? "animate-spin" : ""
+                }`}
+              />
+              Refresh
+            </button>
+          </div>
 
         </div>
 
