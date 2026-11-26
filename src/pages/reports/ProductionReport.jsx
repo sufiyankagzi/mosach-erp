@@ -47,6 +47,21 @@ const columns = [
   ["upperstorectn", "USC"],
 ];
 
+// Columns hidden only in PDF and Excel exports.
+// The on-screen grid and details modal remain unchanged.
+const exportHiddenColumns = new Set([
+  "carton",
+  "cuttingreceiveddate",
+  "cuttingcontractor",
+  "uppercontractor",
+  "upperissuedate",
+  "upperreceiveddate",
+  "upperreceivedctn",
+  "upperinsoleissueddate",
+]);
+
+const exportColumns = columns.filter(([key]) => !exportHiddenColumns.has(key));
+
 // ======================================================
 // NUMBER HELPERS
 // ======================================================
@@ -261,7 +276,7 @@ const exportExcel = () => {
       "#": index + 1,
     };
 
-    columns.forEach(([key, label]) => {
+    exportColumns.forEach(([key, label]) => {
       let value = getColumnValue(row, key);
 
       if (key === "upperstorestatus") {
@@ -283,7 +298,7 @@ const exportExcel = () => {
   // Column widths
   worksheet["!cols"] = [
     { wch: 7 },
-    ...columns.map(([key, label]) => ({
+    ...exportColumns.map(([key, label]) => ({
       wch: Math.max(label.length + 3, 15),
     })),
   ];
@@ -393,13 +408,13 @@ const exportExcel = () => {
 
   const tableColumns = [
     "#",
-    ...columns.map(([, label]) => label),
+    ...exportColumns.map(([, label]) => label),
   ];
 
   const tableRows = sortedRows.map((row, index) => {
     const record = [
       index + 1,
-      ...columns.map(([key]) => {
+      ...exportColumns.map(([key]) => {
         let value = getColumnValue(row, key);
 
         if (key === "upperstorestatus") {
