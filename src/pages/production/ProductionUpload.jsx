@@ -134,6 +134,7 @@ export default function ProductionUpload() {
 
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [clearing, setClearing] = useState(false);
 
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -268,6 +269,44 @@ export default function ProductionUpload() {
       setUploading(false);
     }
   };
+
+  // ======================================================
+// CLEAR ALL PRODUCTION RECORDS
+// ======================================================
+
+const handleClearRecords = async () => {
+  const confirmed = window.confirm(
+    "WARNING!\n\nAre you sure you want to delete ALL production records?\n\nThis action cannot be undone."
+  );
+
+  if (!confirmed) return;
+
+  try {
+    setClearing(true);
+    setError("");
+    setSuccess("");
+
+    await axios.delete(`${API_BASE_URL}/clear`, {
+      timeout: 120000,
+    });
+
+    setSuccess("All production records successfully deleted.");
+
+    setRows([]);
+    setPage(1);
+
+  } catch (err) {
+    console.error("Clear production records error:", err);
+
+    setError(
+      err?.response?.data?.message ||
+      err?.response?.data?.error ||
+      "Production records delete nahi ho paye."
+    );
+  } finally {
+    setClearing(false);
+  }
+};
 
   // ====================================================
   // SEARCH + DATE FILTER
@@ -557,11 +596,15 @@ export default function ProductionUpload() {
             />
 
             <label
-              htmlFor="productionExcel"
-              className="cursor-pointer rounded-lg border border-[#0A4B57] px-5 py-3 text-center text-sm font-bold text-[#0A4B57] hover:bg-teal-50"
-            >
-              Choose Excel
-            </label>
+  htmlFor="productionExcel"
+  className={`cursor-pointer rounded-lg border border-[#0A4B57] px-5 py-3 text-center text-sm font-bold text-[#0A4B57] hover:bg-teal-50 ${
+    clearing || uploading || loading
+      ? "pointer-events-none opacity-50"
+      : ""
+  }`}
+>
+  Choose Excel
+</label>
 
             <button
               type="button"
@@ -573,7 +616,20 @@ export default function ProductionUpload() {
 
               {uploading ? "Uploading..." : "Upload Excel"}
             </button>
+
+            <button
+  type="button"
+  onClick={handleClearRecords}
+  disabled={clearing || uploading || loading || rows.length === 0}
+  className="flex items-center justify-center gap-2 rounded-lg bg-red-600 px-6 py-3 text-sm font-bold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+>
+  <MdClose size={20} />
+
+  {clearing ? "Clearing..." : "Clear Records"}
+</button>
           </div>
+
+          
 
           <p className="mt-3 text-xs text-gray-500">
             Maximum file size: 10 MB. Carton is calculated row-wise using
