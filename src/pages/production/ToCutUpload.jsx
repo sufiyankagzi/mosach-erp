@@ -10,6 +10,7 @@ import {
   MdKeyboardArrowDown,
   MdSearch,
   MdInventory2,
+  MdClose,
 } from "react-icons/md";
 
 const API_BASE_URL =
@@ -52,8 +53,12 @@ const errorText = (error) => {
     return "Request timeout ho gaya. Dobara try karein.";
   }
 
+  if (!error.response && error.message) {
+    return error.message;
+  }
+
   if (!error.response) {
-    return "Server se connection nahi ho raha. Internet aur Render API check karein.";
+    return "Server se connection nahi ho raha.";
   }
 
   return error.message || "Unexpected error occurred.";
@@ -66,6 +71,7 @@ export default function ToCutUpload() {
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [result, setResult] = useState(null);
+  const [clearing, setClearing] = useState(false);
 
   const [rows, setRows] = useState([]);
   const [search, setSearch] = useState("");
@@ -177,6 +183,58 @@ export default function ToCutUpload() {
     }
   };
 
+const handleClearRecords = async () => {
+  const confirmed = window.confirm(
+    "WARNING!\n\nAre you sure you want to delete ALL To Cut records?\n\nThis action cannot be undone."
+  );
+
+  if (!confirmed) return;
+
+  try {
+    setClearing(true);
+    setError("");
+    setMessage("");
+    setResult(null);
+
+    const response = await axios.delete(
+      `${API_BASE_URL}/clear`,
+      { timeout: 120000 }
+    );
+
+    if (response.data?.success !== true) {
+      throw new Error(
+        response.data?.message || "Records delete nahi ho paye."
+      );
+    }
+
+    setMessage(
+      response.data?.message ||
+      "All To Cut records successfully deleted."
+    );
+
+    setRows([]);
+    setPage(1);
+    setSearch("");
+    setFile(null);
+
+    const input = document.getElementById("tocut-file");
+    if (input) input.value = "";
+
+  } catch (err) {
+    console.error("Clear To Cut Records Error:", err);
+
+    setError(
+      err.response?.data?.message ||
+      err.response?.data?.error ||
+      err.message ||
+      "To Cut records delete nahi ho paye."
+    );
+
+  } finally {
+    setClearing(false);
+  }
+};
+
   const filteredRows = useMemo(() => {
     let list = [...rows];
     const query = search.trim().toLowerCase();
@@ -204,9 +262,9 @@ export default function ToCutUpload() {
       const comparison = numeric
         ? an - bn
         : String(av).localeCompare(String(bv), undefined, {
-            numeric: true,
-            sensitivity: "base",
-          });
+          numeric: true,
+          sensitivity: "base",
+        });
 
       return sortDirection === "asc" ? comparison : -comparison;
     });
@@ -313,7 +371,10 @@ export default function ToCutUpload() {
           <form onSubmit={upload}>
             <label
               htmlFor="tocut-file"
-              className="flex min-h-40 cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 p-6 text-center transition hover:border-orange-400 hover:bg-orange-50"
+              className={`flex min-h-40 flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 p-6 text-center transition ${loading || clearing || reportLoading
+                  ? "pointer-events-none cursor-not-allowed opacity-50"
+                  : "cursor-pointer hover:border-orange-400 hover:bg-orange-50"
+                }`}
             >
               <MdCloudUpload
                 size={44}
@@ -362,9 +423,20 @@ export default function ToCutUpload() {
             )}
 
             <div className="mt-5 flex justify-end">
+              {/* CLEAR RECORDS BUTTON */}
+              <button
+                type="button"
+                onClick={handleClearRecords}
+                disabled={clearing || loading || reportLoading || rows.length === 0}
+                className="me-4 flex items-center justify-center gap-2 rounded-lg bg-red-600 px-6 py-3 font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <MdClose size={21} />
+                {clearing ? "Clearing..." : "Clear Records"}
+              </button>
+
               <button
                 type="submit"
-                disabled={!file || loading}
+                disabled={!file || loading || clearing || reportLoading}
                 className="flex items-center gap-2 rounded-lg bg-orange-500 px-6 py-3 font-semibold text-white transition hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <MdCloudUpload size={21} />
@@ -414,7 +486,7 @@ export default function ToCutUpload() {
               <button
                 type="button"
                 onClick={fetchReport}
-                disabled={reportLoading}
+                disabled={reportLoading || clearing || loading}
                 className="flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
               >
                 <MdRefresh
@@ -533,17 +605,16 @@ export default function ToCutUpload() {
                         {columns.map(([key]) => (
                           <td
                             key={key}
-                            className={`whitespace-nowrap border-b border-slate-200 px-3 py-3 ${
-                              key === "sku"
-                                ? "font-semibold text-orange-700"
-                                : key === "tocut"
+                            className={`whitespace-nowrap border-b border-slate-200 px-3 py-3 ${key === "sku"
+                              ? "font-semibold text-orange-700"
+                              : key === "tocut"
                                 ? "font-semibold text-slate-800"
                                 : "text-slate-700"
-                            }`}
+                              }`}
                           >
                             {row[key] === null ||
-                            row[key] === undefined ||
-                            row[key] === ""
+                              row[key] === undefined ||
+                              row[key] === ""
                               ? "-"
                               : row[key]}
                           </td>
@@ -560,8 +631,8 @@ export default function ToCutUpload() {
                       {reportLoading
                         ? "Loading To Cut records..."
                         : error
-                        ? "Records load nahi ho sake. Upar error check karein."
-                        : "No records found."}
+                          ? "Records load nahi ho sake. Upar error check karein."
+                          : "No records found."}
                     </td>
                   </tr>
                 )}
@@ -620,9 +691,9 @@ export default function ToCutUpload() {
               <span>
                 {filteredRows.length
                   ? `${(safePage - 1) * pageSize + 1}-${Math.min(
-                      safePage * pageSize,
-                      filteredRows.length
-                    )} of ${filteredRows.length}`
+                    safePage * pageSize,
+                    filteredRows.length
+                  )} of ${filteredRows.length}`
                   : "0 records"}
               </span>
             </div>
